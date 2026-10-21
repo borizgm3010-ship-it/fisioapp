@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FisioApp · Gestión para centros de fisioterapia</title>
+<style>
+:root{--bg:#f4f7f6;--card:#fff;--tx:#12211f;--mut:#5d6f6b;--bd:#d9e3e0;--pri:#0f6b61;--priL:#dff1ee;--err:#fde8e8;--errT:#9b1c1c;--ok:#d7f2e0;--okT:#14532d}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1514;--card:#142220;--tx:#e8f2f0;--mut:#93aaa5;--bd:#27403c;--pri:#4cc2b2;--priL:#173a35;--err:#3d1616;--errT:#f5b5b5;--ok:#12382a;--okT:#8fe0b0}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;min-height:100vh;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.wrap{max-width:440px;margin:0 auto;padding:24px 16px}
+.logo{font-size:22px;font-weight:800;color:var(--pri);margin:8px 0 2px}
+.sub{color:var(--mut);font-size:14px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:14px;cursor:pointer}
+.tab.on{background:var(--pri);color:var(--bg);border-color:var(--pri);font-weight:600}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px}
+.btn{width:100%;padding:14px;border-radius:12px;border:0;background:var(--pri);color:var(--bg);font-size:16px;font-weight:600;cursor:pointer;margin-top:16px}
+.btn:disabled{opacity:.6}
+.link{background:none;border:0;color:var(--pri);font-size:14px;cursor:pointer;padding:10px 0 0;text-decoration:underline}
+.msg{padding:10px 12px;border-radius:10px;font-size:14px;margin-top:12px;display:none}
+.msg.err{background:var(--err);color:var(--errT);display:block}
+.msg.ok{background:var(--ok);color:var(--okT);display:block}
+.hide{display:none}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.top h1{font-size:19px;margin:0}
+.badge{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;background:var(--priL);color:var(--pri);font-weight:600}
+.out{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.mod{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 12px;text-align:center}
+.mod b{display:block;font-size:15px}
+.mod span{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">FisioApp</div>
+  <div class="sub">Gestión para centros de fisioterapia</div>
+
+  <!-- Ingreso y registro -->
+  <div class="card hide" id="vAuth">
+    <div class="tabs"><button class="tab on" id="tIn">Ingresar</button><button class="tab" id="tUp">Crear cuenta</button></div>
+    <label for="em">Correo</label><input id="em" type="email" autocomplete="email" inputmode="email">
+    <label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn" id="go">Ingresar</button>
+    <button class="link" id="forgot">Olvidé mi contraseña</button>
+    <div class="msg" id="mAuth"></div>
+  </div>
+
+  <!-- Nueva contraseña (desde el correo de recuperación) -->
+  <div class="card hide" id="vReset">
+    <h2 style="margin:0 0 4px;font-size:17px">Nueva contraseña</h2>
+    <label for="np">Escribe tu nueva contraseña (mínimo 8 caracteres)</label><input id="np" type="password" autocomplete="new-password">
+    <button class="btn" id="saveNp">Guardar contraseña</button>
+    <div class="msg" id="mReset"></div>
+  </div>
+
+  <!-- Crear el centro (primera vez) -->
+  <div class="card hide" id="vOnb">
+    <h2 style="margin:0 0 4px;font-size:17px">Crea tu centro</h2>
+    <div class="sub" style="margin-bottom:0">Serás el administrador. Después podrás invitar a terapeutas y recepción.</div>
+    <label for="cn">Nombre del centro</label><input id="cn" placeholder="Ej. Centro Vida Sana">
+    <label for="un">Tu nombre</label><input id="un" placeholder="Ej. María Torres" autocomplete="name">
+    <button class="btn" id="mk">Crear centro</button>
+    <button class="link" id="out2">Cerrar sesión</button>
+    <div class="msg" id="mOnb"></div>
+  </div>
+
+  <!-- Panel -->
+  <div class="hide" id="vDash">
+    <div class="top"><div><h1 id="dC"></h1><div class="sub" style="margin:2px 0 0"><span id="dU"></span> <span class="badge" id="dR"></span></div></div><button class="out" id="out">Salir</button></div>
+    <div class="card">Sesión iniciada correctamente. Tu centro ya está creado en la base de datos.</div>
+    <div class="grid">
+      <div class="mod"><b>Agenda</b><span>Próximamente</span></div>
+      <div class="mod"><b>Pacientes</b><span>Próximamente</span></div>
+      <div class="mod"><b>Historia clínica</b><span>Próximamente</span></div>
+      <div class="mod"><b>Pagos y paquetes</b><span>Próximamente</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+var SUPABASE_URL="https://xzqromdcaeclsdiajcdz.supabase.co";
+var SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6cXJvbWRjYWVjbHNkaWFqY2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTY5MDYsImV4cCI6MjEwNzk5MjkwNn0.6csjnGseODDO_4_EhWGDD8l7LLWDo-AZoW9MofHaSnk";
+if(typeof supabase==="undefined"){
+  var aviso=document.getElementById("vAuth");
+  aviso.className="card";
+  aviso.innerHTML="<b>No se pudo conectar.</b><p>Esta página debe abrirse desde su dirección web publicada (por ejemplo la de Netlify) o desde un navegador normal con internet, no desde una vista previa dentro de otra aplicación.</p>";
+  throw new Error("Supabase no cargó");
+}
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var $=function(i){return document.getElementById(i)};
+var mode="in",recovery=false;
+
+function show(id){["vAuth","vReset","vOnb","vDash"].forEach(function(v){$(v).className=(v==="vDash"?"":"card ")+(v===id?"":"hide")});if(id!=="vDash"){$(id).className="card"}else{$(id).className=""}}
+function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
+function clear(id){$(id).className="msg";$(id).textContent=""}
+function traducir(e){
+  var t=(e&&e.message)||"";
+  if(/Invalid login/i.test(t))return "Correo o contraseña incorrectos.";
+  if(/not confirmed/i.test(t))return "Primero confirma tu correo (revisa tu bandeja y el spam).";
+  if(/already registered/i.test(t))return "Ese correo ya tiene una cuenta. Prueba ingresar.";
+  if(/at least|weak|short/i.test(t))return "La contraseña debe tener al menos 8 caracteres.";
+  if(/rate limit|too many/i.test(t))return "Demasiados intentos. Espera unos minutos.";
+  if(/ya pertenece/i.test(t))return "Este usuario ya pertenece a un centro.";
+  return t||"Ocurrió un error. Inténtalo de nuevo.";
+}
+
+function setMode(m){
+  mode=m;clear("mAuth");
+  $("tIn").className="tab"+(m==="in"?" on":"");$("tUp").className="tab"+(m==="up"?" on":"");
+  $("go").textContent=m==="in"?"Ingresar":"Crear cuenta";
+  $("pw").autocomplete=m==="in"?"current-password":"new-password";
+  $("forgot").className=m==="in"?"link":"link hide";
+}
+$("tIn").onclick=function(){setMode("in")};
+$("tUp").onclick=function(){setMode("up")};
+
+$("go").onclick=function(){
+  var e=$("em").value.trim(),p=$("pw").value;
+  if(!e||!p){say("mAuth","err","Escribe tu correo y contraseña.");return}
+  if(mode==="up"&&p.length<8){say("mAuth","err","La contraseña debe tener al menos 8 caracteres.");return}
+  $("go").disabled=true;clear("mAuth");
+  var call=mode==="in"?sb.auth.signInWithPassword({email:e,password:p}):sb.auth.signUp({email:e,password:p});
+  call.then(function(r){
+    $("go").disabled=false;
+    if(r.error){say("mAuth","err",traducir(r.error));return}
+    if(mode==="up"&&!r.data.session){say("mAuth","ok","Cuenta creada. Te enviamos un correo: confírmalo y luego ingresa.");setMode("in")}
+  }).catch(function(x){$("go").disabled=false;say("mAuth","err",traducir(x))});
+};
+
+$("forgot").onclick=function(){
+  var e=$("em").value.trim();
+  if(!e){say("mAuth","err","Escribe tu correo arriba y vuelve a tocar «Olvidé mi contraseña».");return}
+  sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname}).then(function(r){
+    if(r.error){say("mAuth","err",traducir(r.error))}else{say("mAuth","ok","Si el correo existe, te enviamos un enlace para cambiar la contraseña.")}
+  });
+};
+
+$("saveNp").onclick=function(){
+  var p=$("np").value;
+  if(p.length<8){say("mReset","err","Mínimo 8 caracteres.");return}
+  sb.auth.updateUser({password:p}).then(function(r){
+    if(r.error){say("mReset","err",traducir(r.error));return}
+    recovery=false;route();
+  });
+};
+
+$("mk").onclick=function(){
+  var c=$("cn").value.trim(),n=$("un").value.trim();
+  if(!c||!n){say("mOnb","err","Escribe el nombre del centro y tu nombre.");return}
+  $("mk").disabled=true;clear("mOnb");
+  sb.rpc("registrar_centro",{p_centro:c,p_nombre:n}).then(function(r){
+    $("mk").disabled=false;
+    if(r.error){say("mOnb","err",traducir(r.error));return}
+    route();
+  });
+};
+
+function salir(){sb.auth.signOut().then(function(){route()})}
+$("out").onclick=salir;$("out2").onclick=salir;
+
+var ROLES={admin:"Administrador",terapeuta:"Terapeuta",recepcion:"Recepción"};
+function route(){
+  sb.auth.getSession().then(function(s){
+    var ses=s.data&&s.data.session;
+    if(recovery&&ses){show("vReset");return}
+    if(!ses){show("vAuth");return}
+    sb.from("perfiles").select("nombre,rol,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
+      if(r.error){show("vAuth");say("mAuth","err",traducir(r.error));return}
+      if(!r.data){show("vOnb");return}
+      $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
+      $("dU").textContent=r.data.nombre;
+      $("dR").textContent=ROLES[r.data.rol]||r.data.rol;
+      show("vDash");
+    });
+  });
+}
+
+sb.auth.onAuthStateChange(function(ev){
+  if(ev==="PASSWORD_RECOVERY"){recovery=true}
+  if(ev==="SIGNED_IN"||ev==="SIGNED_OUT"||ev==="PASSWORD_RECOVERY"||ev==="INITIAL_SESSION"){setTimeout(route,0)}
+});
+setMode("in");
+</script>
+</body>
+</html>

@@ -231,6 +231,35 @@ input[type=range]{padding:0}
     <div class="ov" id="ov"><button id="ovx">Cerrar</button><div id="ovc"></div></div>
   </div>
 
+  <!-- Pagos y paquetes -->
+  <div class="hide" id="vPay">
+    <div class="top"><h1>Pagos y paquetes</h1><button class="out" id="yBack">Volver</button></div>
+    <div class="tabs"><button class="tab on" id="yT1">Cobrar</button><button class="tab" id="yT2">Historial</button><button class="tab" id="yT3">Catálogo</button></div>
+    <div class="msg" id="mY"></div>
+    <section id="yV1">
+      <div class="card"><label style="margin-top:0">Paciente</label><input id="yQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="yP"></select><div id="ySaldo" style="margin-top:10px"></div></div>
+      <div class="card" style="margin-top:10px"><b>Vender paquete</b>
+        <label>Paquete</label><select id="yPk"></select>
+        <div class="g2"><div><label>Monto cobrado (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <button class="btn" id="yVend">Vender paquete</button></div>
+      <div class="card" style="margin-top:10px"><b>Cobro de sesión suelta</b>
+        <div class="g2"><div><label>Monto (S/)</label><input id="ySm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="ySme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <label>Concepto</label><input id="ySc" placeholder="Ej. Sesión del 15 de octubre">
+        <button class="btn" id="yCobro">Registrar cobro</button></div>
+    </section>
+    <section id="yV2" class="hide">
+      <div class="card"><div class="g2"><div><b id="yHoy">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado hoy</div></div><div><b id="yMes">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado este mes</div></div></div></div>
+      <div id="yHist" style="margin-top:10px"></div>
+    </section>
+    <section id="yV3" class="hide">
+      <div class="card" id="yAdm"><b>Nuevo paquete</b>
+        <label>Nombre</label><input id="cNom" placeholder="Ej. Paquete 10 sesiones">
+        <div class="g2"><div><label>Sesiones</label><input id="cSes" type="number" inputmode="numeric"></div><div><label>Precio (S/)</label><input id="cPre" type="number" inputmode="decimal"></div></div>
+        <button class="btn" id="cAdd">Agregar paquete</button></div>
+      <div id="cList" style="margin-top:10px"></div>
+    </section>
+  </div>
+
   <!-- Equipo (solo administrador) -->
   <div class="hide" id="vTeam">
     <div class="top"><h1>Equipo</h1><button class="out" id="tBack">Volver</button></div>
@@ -253,7 +282,7 @@ input[type=range]{padding:0}
       <div class="mod" id="modAg" style="cursor:pointer"><b>Agenda</b><span>Citas por terapeuta</span></div>
       <div class="mod" id="modPac" style="cursor:pointer"><b>Pacientes</b><span>Fichas y búsqueda</span></div>
       <div class="mod" id="modHC" style="cursor:pointer"><b>Historia clínica</b><span>Elige un paciente</span></div>
-      <div class="mod"><b>Pagos y paquetes</b><span>Próximamente</span></div>
+      <div class="mod" id="modPay" style="cursor:pointer"><b>Pagos y paquetes</b><span>Cobros y sesiones</span></div>
       <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
     </div>
   </div>
@@ -273,7 +302,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC","vPay"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -726,6 +755,97 @@ function pintarArch(m){
     c.appendChild(f);box.appendChild(c);
   });
 }
+var CAT=[];
+function sol(n){return "S/ "+Number(n||0).toFixed(2)}
+var MT={efectivo:"Efectivo",yape:"Yape",plin:"Plin",tarjeta:"Tarjeta",transferencia:"Transferencia"};
+function yTab(n){for(var i=1;i<=3;i++){$("yV"+i).className=i===n?"":"hide";$("yT"+i).className="tab"+(i===n?" on":"")}}
+$("yT1").onclick=function(){yTab(1)};$("yT2").onclick=function(){yTab(2);cargarHist()};$("yT3").onclick=function(){yTab(3);pintarCat()};
+$("yBack").onclick=function(){route()};
+$("modPay").onclick=function(){
+  show("vPay");yTab(1);clear("mY");$("yQ").value="";
+  $("yAdm").style.display=(ME&&ME.rol==="admin")?"":"none";
+  cargarPac(function(){llenarYP(null);cargarCat(function(){llenarPk();saldoY()})});
+};
+function llenarYP(sel){
+  var q=$("yQ").value.trim().toLowerCase(),s2=$("yP");s2.innerHTML="";
+  PACS.filter(function(p){return !q||p.nombre.toLowerCase().indexOf(q)>=0||p.id===sel}).forEach(function(p){s2.appendChild(opt(p.id,p.nombre))});
+  if(sel)s2.value=sel;
+}
+$("yQ").oninput=function(){llenarYP($("yP").value);saldoY()};
+$("yP").onchange=saldoY;
+function cargarCat(cb){sb.from("paquetes").select("id,nombre,sesiones,precio,activo").order("nombre").then(function(r){if(!r.error){CAT=r.data}if(cb)cb()})}
+function llenarPk(){
+  var s2=$("yPk");s2.innerHTML="";
+  CAT.filter(function(c){return c.activo}).forEach(function(c){s2.appendChild(opt(c.id,c.nombre+" · "+c.sesiones+" ses. · "+sol(c.precio)))});
+  precioPk();
+}
+function precioPk(){var c=CAT.filter(function(x){return x.id===$("yPk").value})[0];$("yPm").value=c?c.precio:""}
+$("yPk").onchange=precioPk;
+function saldoY(){
+  var b=$("ySaldo");b.innerHTML="";var id=$("yP").value;if(!id)return;
+  sb.from("paquetes_paciente").select("sesiones_total,sesiones_usadas,comprado_en,paquetes(nombre)").eq("paciente_id",id).order("comprado_en",{ascending:false}).then(function(r){
+    if(r.error){say("mY","err",errp(r.error));return}
+    if(!r.data.length){b.appendChild(el("div","sub","Este paciente no tiene paquetes."));return}
+    r.data.forEach(function(x){var q=x.sesiones_total-x.sesiones_usadas;var d=el("div","sub",(x.paquetes&&x.paquetes.nombre||"Paquete")+": "+x.sesiones_usadas+" de "+x.sesiones_total+" usadas · "+(q>0?"quedan "+q:"agotado"));d.style.cssText="margin:4px 0;color:"+(q>0?"var(--okT)":"var(--mut)");b.appendChild(d)});
+  });
+}
+$("yVend").onclick=function(){
+  var pid=$("yP").value,pk=$("yPk").value;
+  if(!pid){say("mY","err","Elige un paciente.");return}
+  if(!pk){say("mY","err","No hay paquetes en el catálogo. Pide al administrador que cree uno.");return}
+  $("yVend").disabled=true;
+  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_monto:+$("yPm").value||0,p_metodo:$("yPme").value}).then(function(r){
+    $("yVend").disabled=false;
+    if(r.error){say("mY","err",errp(r.error));return}
+    say("mY","ok","Paquete vendido.");saldoY();
+  });
+};
+$("yCobro").onclick=function(){
+  var pid=$("yP").value,m=+$("ySm").value;
+  if(!pid){say("mY","err","Elige un paciente.");return}
+  if(!(m>0)){say("mY","err","Escribe un monto mayor a 0.");return}
+  $("yCobro").disabled=true;
+  sb.from("pagos").insert({paciente_id:pid,monto:m,metodo:$("ySme").value,concepto:$("ySc").value.trim()||null}).then(function(r){
+    $("yCobro").disabled=false;
+    if(r.error){say("mY","err",errp(r.error));return}
+    $("ySm").value="";$("ySc").value="";say("mY","ok","Cobro registrado.");
+  });
+};
+function cargarHist(){
+  var ini=new Date();ini=new Date(ini.getFullYear(),ini.getMonth(),1);
+  sb.from("pagos").select("id,monto,metodo,concepto,pagado_en,pacientes(nombre)").gte("pagado_en",ini.toISOString()).order("pagado_en",{ascending:false}).limit(2000).then(function(r){
+    if(r.error){say("mY","err",errp(r.error));return}
+    var hoy=ymd(new Date()),th=0,tm=0,box=$("yHist");box.innerHTML="";
+    r.data.forEach(function(x){tm+=Number(x.monto);if(ymd(new Date(x.pagado_en))===hoy)th+=Number(x.monto)});
+    $("yHoy").textContent=sol(th);$("yMes").textContent=sol(tm);
+    if(!r.data.length){box.appendChild(el("div","sub","Aún no hay cobros este mes."));return}
+    r.data.slice(0,40).forEach(function(x){
+      var c=el("div","card");c.style.marginBottom="8px";
+      var t=el("div","top");t.appendChild(el("b",null,(x.pacientes&&x.pacientes.nombre)||"Paciente"));t.appendChild(el("b",null,sol(x.monto)));c.appendChild(t);
+      c.appendChild(el("div","sub",new Date(x.pagado_en).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+(MT[x.metodo]||x.metodo)+(x.concepto?" · "+x.concepto:"")));
+      box.appendChild(c);
+    });
+  });
+}
+function pintarCat(){
+  var box=$("cList");box.innerHTML="";
+  if(!CAT.length){box.appendChild(el("div","sub","Aún no hay paquetes."));return}
+  CAT.forEach(function(c){
+    var d=el("div","card");d.style.marginBottom="8px";
+    var t=el("div","top");t.appendChild(el("b",null,c.nombre+(c.activo?"":" (inactivo)")));t.appendChild(el("b",null,sol(c.precio)));d.appendChild(t);
+    d.appendChild(el("div","sub",c.sesiones+" sesiones"));
+    if(ME&&ME.rol==="admin"){var b=el("button","sm",c.activo?"Desactivar":"Activar");b.onclick=function(){sb.from("paquetes").update({activo:!c.activo}).eq("id",c.id).then(function(r){if(r.error){say("mY","err",errp(r.error))}else{cargarCat(pintarCat)}})};d.appendChild(b)}
+    box.appendChild(d);
+  });
+}
+$("cAdd").onclick=function(){
+  var n=$("cNom").value.trim(),se=+$("cSes").value,pr=+$("cPre").value;
+  if(!n||!(se>0)||!(pr>=0)||$("cPre").value===""){say("mY","err","Completa nombre, sesiones y precio.");return}
+  sb.from("paquetes").insert({nombre:n,sesiones:se,precio:pr}).then(function(r){
+    if(r.error){say("mY","err",errp(r.error));return}
+    $("cNom").value="";$("cSes").value="";$("cPre").value="";say("mY","ok","Paquete agregado.");cargarCat(function(){pintarCat();llenarPk()});
+  });
+};
 setMode("in");
 </script>
 </body>

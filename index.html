@@ -34,6 +34,10 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);back
 .mod{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px 12px;text-align:center}
 .mod b{display:block;font-size:15px}
 .mod span{font-size:12px;color:var(--mut)}
+.code{font-size:30px;letter-spacing:4px;font-weight:800;text-align:center;margin:10px 0;color:var(--pri)}
+.row{display:flex;gap:8px;margin-top:10px}
+.row .out{flex:1}
+select.sel{padding:8px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:15px}
 </style>
 </head>
 <body>
@@ -59,15 +63,44 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);back
     <div class="msg" id="mReset"></div>
   </div>
 
-  <!-- Crear el centro (primera vez) -->
+  <!-- Primer ingreso: crear centro o unirse con código -->
   <div class="card hide" id="vOnb">
-    <h2 style="margin:0 0 4px;font-size:17px">Crea tu centro</h2>
-    <div class="sub" style="margin-bottom:0">Serás el administrador. Después podrás invitar a terapeutas y recepción.</div>
-    <label for="cn">Nombre del centro</label><input id="cn" placeholder="Ej. Centro Vida Sana">
-    <label for="un">Tu nombre</label><input id="un" placeholder="Ej. María Torres" autocomplete="name">
-    <button class="btn" id="mk">Crear centro</button>
+    <div class="tabs"><button class="tab on" id="oNew">Crear mi centro</button><button class="tab" id="oJoin">Unirme con código</button></div>
+    <div id="onbNew">
+      <div class="sub" style="margin-bottom:0">Serás el administrador. Luego invitarás a tu equipo con un código.</div>
+      <label for="cn">Nombre del centro</label><input id="cn" placeholder="Ej. Centro Vida Sana">
+      <label for="un">Tu nombre</label><input id="un" placeholder="Ej. María Torres" autocomplete="name">
+      <button class="btn" id="mk">Crear centro</button>
+    </div>
+    <div id="onbJoin" class="hide">
+      <div class="sub" style="margin-bottom:0">Pide el código de invitación al administrador de tu centro.</div>
+      <label for="cj">Código de invitación</label><input id="cj" autocapitalize="characters" autocomplete="off" placeholder="Ej. A1B2C3D4">
+      <label for="uj">Tu nombre</label><input id="uj" autocomplete="name">
+      <button class="btn" id="jn">Unirme al centro</button>
+    </div>
     <button class="link" id="out2">Cerrar sesión</button>
     <div class="msg" id="mOnb"></div>
+  </div>
+
+  <!-- Cuenta desactivada -->
+  <div class="card hide" id="vOff">
+    <h2 style="margin:0 0 6px;font-size:17px">Cuenta desactivada</h2>
+    <div class="sub">El administrador de tu centro desactivó tu acceso. Habla con él si crees que es un error.</div>
+    <button class="btn" id="out3">Cerrar sesión</button>
+  </div>
+
+  <!-- Equipo (solo administrador) -->
+  <div class="hide" id="vTeam">
+    <div class="top"><h1>Equipo</h1><button class="out" id="tBack">Volver</button></div>
+    <div class="card">
+      <b>Código de invitación</b>
+      <div class="code" id="tCode">········</div>
+      <div class="sub" style="margin:0">Compártelo con tus terapeutas. Ellos crean su cuenta y eligen «Unirme con código».</div>
+      <button class="btn" id="tWa">Compartir por WhatsApp</button>
+      <div class="row"><button class="out" id="tCopy">Copiar código</button><button class="out" id="tNew">Cambiar código</button></div>
+      <div class="msg" id="mTeam"></div>
+    </div>
+    <div id="tList"></div>
   </div>
 
   <!-- Panel -->
@@ -79,6 +112,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);back
       <div class="mod"><b>Pacientes</b><span>Próximamente</span></div>
       <div class="mod"><b>Historia clínica</b><span>Próximamente</span></div>
       <div class="mod"><b>Pagos y paquetes</b><span>Próximamente</span></div>
+      <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
     </div>
   </div>
 </div>
@@ -97,7 +131,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash"].forEach(function(v){$(v).className=(v==="vDash"?"":"card ")+(v===id?"":"hide")});if(id!=="vDash"){$(id).className="card"}else{$(id).className=""}}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff"].forEach(function(v){var card=(v!=="vDash"&&v!=="vTeam");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -163,7 +197,7 @@ $("mk").onclick=function(){
 };
 
 function salir(){sb.auth.signOut().then(function(){route()})}
-$("out").onclick=salir;$("out2").onclick=salir;
+$("out").onclick=salir;$("out2").onclick=salir;$("out3").onclick=salir;
 
 var ROLES={admin:"Administrador",terapeuta:"Terapeuta",recepcion:"Recepción"};
 function route(){
@@ -171,9 +205,12 @@ function route(){
     var ses=s.data&&s.data.session;
     if(recovery&&ses){show("vReset");return}
     if(!ses){show("vAuth");return}
-    sb.from("perfiles").select("nombre,rol,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
+    sb.from("perfiles").select("nombre,rol,activo,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
       if(r.error){show("vAuth");say("mAuth","err",traducir(r.error));return}
       if(!r.data){show("vOnb");return}
+      if(!r.data.activo){show("vOff");return}
+      ME={id:ses.user.id,rol:r.data.rol};
+      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";
       $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
       $("dU").textContent=r.data.nombre;
       $("dR").textContent=ROLES[r.data.rol]||r.data.rol;
@@ -186,6 +223,64 @@ sb.auth.onAuthStateChange(function(ev){
   if(ev==="PASSWORD_RECOVERY"){recovery=true}
   if(ev==="SIGNED_IN"||ev==="SIGNED_OUT"||ev==="PASSWORD_RECOVERY"||ev==="INITIAL_SESSION"){setTimeout(route,0)}
 });
+var ME=null;
+function onbTab(m){
+  clear("mOnb");
+  $("oNew").className="tab"+(m==="new"?" on":"");$("oJoin").className="tab"+(m==="join"?" on":"");
+  $("onbNew").className=m==="new"?"":"hide";$("onbJoin").className=m==="join"?"":"hide";
+}
+$("oNew").onclick=function(){onbTab("new")};
+$("oJoin").onclick=function(){onbTab("join")};
+$("jn").onclick=function(){
+  var c=$("cj").value.trim(),n=$("uj").value.trim();
+  if(!c||!n){say("mOnb","err","Escribe el código y tu nombre.");return}
+  $("jn").disabled=true;clear("mOnb");
+  sb.rpc("unirse_centro",{p_codigo:c,p_nombre:n}).then(function(r){
+    $("jn").disabled=false;
+    if(r.error){say("mOnb","err",traducir(r.error));return}
+    route();
+  });
+};
+
+function loadTeam(){
+  $("tCode").textContent="········";
+  sb.rpc("mi_codigo").then(function(r){if(r.error){say("mTeam","err",traducir(r.error))}else{$("tCode").textContent=r.data}});
+  sb.from("perfiles").select("id,nombre,email,rol,activo").order("nombre").then(function(r){
+    var box=$("tList");box.innerHTML="";
+    if(r.error){say("mTeam","err",traducir(r.error));return}
+    r.data.forEach(function(p){
+      var c=document.createElement("div");c.className="card";c.style.marginTop="10px";
+      var n=document.createElement("b");n.textContent=p.nombre+(ME&&p.id===ME.id?" (tú)":"");
+      var e=document.createElement("div");e.className="sub";e.style.margin="2px 0 8px";e.textContent=(p.email||"")+(p.activo?"":" · desactivado");
+      c.appendChild(n);c.appendChild(e);
+      if(ME&&p.id!==ME.id){
+        var sel=document.createElement("select");sel.className="sel";
+        [["admin","Administrador"],["terapeuta","Terapeuta"],["recepcion","Recepción"]].forEach(function(o){var op=document.createElement("option");op.value=o[0];op.textContent=o[1];if(o[0]===p.rol)op.selected=true;sel.appendChild(op)});
+        sel.onchange=function(){sb.rpc("cambiar_rol",{p_id:p.id,p_rol:sel.value}).then(function(x){if(x.error){say("mTeam","err",traducir(x.error));loadTeam()}else{say("mTeam","ok","Rol actualizado.")}})};
+        var b=document.createElement("button");b.className="out";b.style.marginLeft="8px";b.textContent=p.activo?"Desactivar":"Activar";
+        b.onclick=function(){sb.rpc("cambiar_activo",{p_id:p.id,p_activo:!p.activo}).then(function(x){if(x.error){say("mTeam","err",traducir(x.error))}else{loadTeam()}})};
+        c.appendChild(sel);c.appendChild(b);
+      }else{
+        var t=document.createElement("span");t.className="badge";t.textContent=ROLES[p.rol]||p.rol;c.appendChild(t);
+      }
+      box.appendChild(c);
+    });
+  });
+}
+$("modTeam").onclick=function(){show("vTeam");clear("mTeam");loadTeam()};
+$("tBack").onclick=function(){route()};
+$("tWa").onclick=function(){
+  var code=$("tCode").textContent,url=location.origin+location.pathname;
+  window.open("https://wa.me/?text="+encodeURIComponent("Únete a mi centro en FisioApp: "+url+"\nCrea tu cuenta, elige «Unirme con código» y escribe: "+code),"_blank");
+};
+$("tCopy").onclick=function(){
+  var code=$("tCode").textContent;
+  try{navigator.clipboard.writeText(code).then(function(){say("mTeam","ok","Código copiado.")},function(){say("mTeam","err","No se pudo copiar. Cópialo a mano.")})}catch(e){say("mTeam","err","No se pudo copiar. Cópialo a mano.")}
+};
+$("tNew").onclick=function(){
+  if(!confirm("¿Cambiar el código? El anterior dejará de servir para nuevas personas.")){return}
+  sb.rpc("regenerar_codigo").then(function(r){if(r.error){say("mTeam","err",traducir(r.error))}else{$("tCode").textContent=r.data;say("mTeam","ok","Código cambiado.")}});
+};
 setMode("in");
 </script>
 </body>

@@ -38,6 +38,27 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);back
 .row{display:flex;gap:8px;margin-top:10px}
 .row .out{flex:1}
 select.sel{padding:8px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:15px}
+select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px}
+select.sel{width:auto}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;margin:8px 0}
+.chip{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:999px;padding:7px 14px;font-size:14px;white-space:nowrap;cursor:pointer}
+.chip.on{background:var(--pri);color:var(--bg);border-color:var(--pri)}
+.slot{display:flex;gap:10px;margin-bottom:8px}
+.hr{width:46px;color:var(--mut);font-size:13px;padding-top:10px}
+.sl{flex:1}
+.ap{display:block;width:100%;text-align:left;border:0;border-radius:12px;padding:9px 12px;margin-bottom:6px;font:inherit;cursor:pointer}
+.ap small{display:block;opacity:.85}
+.s-pendiente{background:#fff3cf;color:#7a5a00}
+.s-confirmada{background:#d7f2e0;color:#14532d}
+.s-atendida{background:#e4e8ef;color:#374151}
+.s-cancelada,.s-no_asistio{background:#fde8e8;color:#9b1c1c;text-decoration:line-through}
+@media (prefers-color-scheme:dark){.s-pendiente{background:#3d3210;color:#f5d77a}.s-confirmada{background:#12382a;color:#8fe0b0}.s-atendida{background:#252c38;color:#c3cad6}.s-cancelada,.s-no_asistio{background:#3d1616;color:#f5b5b5}}
+.add{width:100%;border:1px dashed var(--bd);background:transparent;color:var(--mut);border-radius:12px;padding:9px;font-size:14px;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.modal.show{display:flex}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow:auto}
+.sheet h2{margin:0 0 4px;font-size:17px}
 </style>
 </head>
 <body>
@@ -89,6 +110,42 @@ select.sel{padding:8px;border-radius:10px;border:1px solid var(--bd);background:
     <button class="btn" id="out3">Cerrar sesión</button>
   </div>
 
+  <!-- Pacientes -->
+  <div class="hide" id="vPac">
+    <div class="top"><h1>Pacientes</h1><button class="out" id="pBack">Volver</button></div>
+    <input id="pQ" placeholder="Buscar por nombre o documento">
+    <button class="btn" id="pNew" style="margin:10px 0 12px">+ Nuevo paciente</button>
+    <div id="pList"></div>
+    <div class="modal" id="mP"><div class="sheet">
+      <h2 id="mPt">Paciente</h2>
+      <label for="pn">Nombre completo</label><input id="pn" autocomplete="off">
+      <label for="pd">Documento</label><input id="pd" inputmode="numeric">
+      <label for="pt">Teléfono</label><input id="pt" inputmode="tel">
+      <label for="pe">Correo</label><input id="pe" type="email">
+      <label for="pf">Fecha de nacimiento</label><input id="pf" type="date">
+      <div class="msg" id="mPm"></div>
+      <div class="row"><button class="out" id="pCx">Cancelar</button><button class="out" id="pDel" style="color:#c0392b">Eliminar</button><button class="btn" id="pSv" style="margin:0;flex:2">Guardar</button></div>
+    </div></div>
+  </div>
+
+  <!-- Agenda -->
+  <div class="hide" id="vAg">
+    <div class="top"><h1>Agenda</h1><button class="out" id="gBack">Volver</button></div>
+    <div class="row" style="margin:0"><button class="out" id="gPrev" style="flex:1">‹</button><input id="gDate" type="date" style="flex:4"><button class="out" id="gNext" style="flex:1">›</button></div>
+    <div class="chips" id="gThr"></div>
+    <div class="msg" id="mAg"></div>
+    <div id="gList"></div>
+    <div class="modal" id="mC"><div class="sheet">
+      <h2 id="mCt">Nueva cita</h2>
+      <label for="cQ">Paciente</label><input id="cQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="cP"></select>
+      <label for="cT">Terapeuta</label><select id="cT"></select>
+      <div class="g2"><div><label for="cH">Hora</label><select id="cH"></select></div><div><label for="cD">Duración</label><select id="cD"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>60 min</option></select></div></div>
+      <label for="cS">Estado</label><select id="cS"><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="atendida">Atendida</option><option value="cancelada">Cancelada</option><option value="no_asistio">No asistió</option></select>
+      <div class="msg" id="mCm"></div>
+      <div class="row"><button class="out" id="cCx">Cancelar</button><button class="out" id="cDel" style="color:#c0392b">Eliminar</button><button class="btn" id="cSv" style="margin:0;flex:2">Guardar</button></div>
+    </div></div>
+  </div>
+
   <!-- Equipo (solo administrador) -->
   <div class="hide" id="vTeam">
     <div class="top"><h1>Equipo</h1><button class="out" id="tBack">Volver</button></div>
@@ -108,8 +165,8 @@ select.sel{padding:8px;border-radius:10px;border:1px solid var(--bd);background:
     <div class="top"><div><h1 id="dC"></h1><div class="sub" style="margin:2px 0 0"><span id="dU"></span> <span class="badge" id="dR"></span></div></div><button class="out" id="out">Salir</button></div>
     <div class="card">Sesión iniciada correctamente. Tu centro ya está creado en la base de datos.</div>
     <div class="grid">
-      <div class="mod"><b>Agenda</b><span>Próximamente</span></div>
-      <div class="mod"><b>Pacientes</b><span>Próximamente</span></div>
+      <div class="mod" id="modAg" style="cursor:pointer"><b>Agenda</b><span>Citas por terapeuta</span></div>
+      <div class="mod" id="modPac" style="cursor:pointer"><b>Pacientes</b><span>Fichas y búsqueda</span></div>
       <div class="mod"><b>Historia clínica</b><span>Próximamente</span></div>
       <div class="mod"><b>Pagos y paquetes</b><span>Próximamente</span></div>
       <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
@@ -131,7 +188,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff"].forEach(function(v){var card=(v!=="vDash"&&v!=="vTeam");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -281,6 +338,115 @@ $("tNew").onclick=function(){
   if(!confirm("¿Cambiar el código? El anterior dejará de servir para nuevas personas.")){return}
   sb.rpc("regenerar_codigo").then(function(r){if(r.error){say("mTeam","err",traducir(r.error))}else{$("tCode").textContent=r.data;say("mTeam","ok","Código cambiado.")}});
 };
+var TEAM=[],PACS=[],CITAS=[],GD=new Date(),GT="all",EC=null,EP=null;
+var ES={pendiente:"Pendiente",confirmada:"Confirmada",atendida:"Atendida",cancelada:"Cancelada",no_asistio:"No asistió"};
+function pad(n){return(n<10?"0":"")+n}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function hm(d){return pad(d.getHours())+":"+pad(d.getMinutes())}
+function errp(e){var t=(e&&e.message)||"";if(/sin_cruce|exclusion/i.test(t))return "Ese terapeuta ya tiene una cita en ese horario.";if(/row-level|policy|permission/i.test(t))return "No tienes permiso para esta acción.";return traducir(e)}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function opt(v,t){var o=document.createElement("option");o.value=v;o.textContent=t;return o}
+function cerrar(id){$(id).className="modal"}
+
+/* Pacientes */
+function cargarPac(cb){sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento").order("nombre").limit(1000).then(function(r){if(!r.error){PACS=r.data}if(cb)cb()})}
+function listaPac(){
+  var q=$("pQ").value.trim().toLowerCase(),box=$("pList");box.innerHTML="";
+  var L=PACS.filter(function(p){return !q||p.nombre.toLowerCase().indexOf(q)>=0||(p.documento||"").indexOf(q)>=0});
+  if(!L.length){box.appendChild(el("div","sub",PACS.length?"Sin resultados.":"Aún no hay pacientes."));return}
+  L.forEach(function(p){var c=el("div","card");c.style.cssText="margin-bottom:8px;cursor:pointer";c.appendChild(el("b",null,p.nombre));var s2=el("div","sub",[p.documento,p.telefono].filter(Boolean).join(" · ")||"Sin datos de contacto");s2.style.margin="2px 0 0";c.appendChild(s2);c.onclick=function(){abrirPac(p)};box.appendChild(c)});
+}
+function abrirPac(p){
+  EP=p||null;$("mPt").textContent=p?"Editar paciente":"Nuevo paciente";
+  $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pe").value=(p&&p.email)||"";$("pf").value=(p&&p.fecha_nacimiento)||"";
+  $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";clear("mPm");$("mP").className="modal show";
+}
+$("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarPac(listaPac)};
+$("pQ").oninput=listaPac;
+$("pNew").onclick=function(){abrirPac(null)};
+$("pBack").onclick=function(){route()};
+$("pCx").onclick=function(){cerrar("mP")};
+$("pSv").onclick=function(){
+  var n=$("pn").value.trim();if(!n){say("mPm","err","Escribe el nombre del paciente.");return}
+  var o={nombre:n,documento:$("pd").value.trim()||null,telefono:$("pt").value.trim()||null,email:$("pe").value.trim()||null,fecha_nacimiento:$("pf").value||null};
+  var q=EP?sb.from("pacientes").update(o).eq("id",EP.id):sb.from("pacientes").insert(o);
+  q.then(function(r){if(r.error){say("mPm","err",errp(r.error));return}cerrar("mP");cargarPac(listaPac)});
+};
+$("pDel").onclick=function(){
+  if(!EP||!confirm("¿Eliminar a este paciente? También se borrarán sus citas e historia clínica."))return;
+  sb.from("pacientes").delete().eq("id",EP.id).then(function(r){if(r.error){say("mPm","err",errp(r.error));return}cerrar("mP");cargarPac(listaPac)});
+};
+
+/* Agenda */
+function nomT(id){for(var i=0;i<TEAM.length;i++){if(TEAM[i].id===id)return TEAM[i].nombre}return "—"}
+function chipsT(){
+  var b=$("gThr");b.innerHTML="";
+  [{id:"all",nombre:"Todos"}].concat(TEAM).forEach(function(t){var c=el("button","chip"+(GT===t.id?" on":""),t.nombre);c.onclick=function(){GT=t.id;chipsT();pintar()};b.appendChild(c)});
+}
+function cargarCitas(){
+  var d0=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()),d1=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+1);
+  $("gDate").value=ymd(GD);
+  sb.from("citas").select("id,paciente_id,terapeuta_id,inicio,fin,estado,pacientes(nombre)").gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
+    if(r.error){say("mAg","err",errp(r.error));return}
+    clear("mAg");CITAS=r.data;pintar();
+  });
+}
+function pintar(){
+  var box=$("gList");box.innerHTML="";
+  for(var h=7;h<=20;h++){
+    var row=el("div","slot");row.appendChild(el("div","hr",pad(h)+":00"));var col=el("div","sl");
+    CITAS.filter(function(c){return new Date(c.inicio).getHours()===h&&(GT==="all"||c.terapeuta_id===GT)}).forEach(function(c){
+      var a=el("button","ap s-"+c.estado);a.appendChild(el("b",null,(c.pacientes&&c.pacientes.nombre)||"Paciente"));
+      a.appendChild(el("small",null,nomT(c.terapeuta_id)+" · "+hm(new Date(c.inicio))+"–"+hm(new Date(c.fin))+" · "+ES[c.estado]));
+      a.onclick=function(){abrirCita(c)};col.appendChild(a);
+    });
+    var ad=el("button","add","+ Agendar");ad.onclick=(function(hh){return function(){abrirCita(null,hh)}})(h);col.appendChild(ad);
+    row.appendChild(col);box.appendChild(row);
+  }
+}
+function llenarPac(sel){
+  var q=$("cQ").value.trim().toLowerCase(),s2=$("cP");s2.innerHTML="";
+  PACS.filter(function(p){return !q||p.nombre.toLowerCase().indexOf(q)>=0||p.id===sel}).forEach(function(p){s2.appendChild(opt(p.id,p.nombre))});
+  if(sel)s2.value=sel;
+}
+function abrirCita(c,h){
+  if(!PACS.length){say("mAg","err","Primero crea al menos un paciente (menú Pacientes).");return}
+  if(!TEAM.length){say("mAg","err","No hay terapeutas activos.");return}
+  EC=c||null;$("mCt").textContent=c?"Editar cita":"Nueva cita";$("cQ").value="";
+  $("cT").innerHTML="";TEAM.forEach(function(t){$("cT").appendChild(opt(t.id,t.nombre))});
+  $("cH").innerHTML="";for(var x=7*60;x<=20*60;x+=30){$("cH").appendChild(opt(pad(Math.floor(x/60))+":"+pad(x%60),pad(Math.floor(x/60))+":"+pad(x%60)))}
+  if(c){
+    var i=new Date(c.inicio),f=new Date(c.fin),dm=Math.round((f-i)/60000);
+    llenarPac(c.paciente_id);$("cT").value=c.terapeuta_id;$("cH").value=hm(i);$("cD").value=String([30,45,60].indexOf(dm)>=0?dm:60);$("cS").value=c.estado;
+  }else{
+    llenarPac(null);var pt=GT!=="all"?GT:(ME&&TEAM.some(function(t){return t.id===ME.id})?ME.id:TEAM[0].id);
+    $("cT").value=pt;$("cH").value=pad(h)+":00";$("cD").value="60";$("cS").value="pendiente";
+  }
+  $("cDel").style.display=(c&&ME&&ME.rol==="admin")?"":"none";clear("mCm");$("mC").className="modal show";
+}
+$("cQ").oninput=function(){llenarPac($("cP").value)};
+$("cCx").onclick=function(){cerrar("mC")};
+$("cSv").onclick=function(){
+  if(!$("cP").value){say("mCm","err","Elige un paciente.");return}
+  var hh=$("cH").value.split(":"),ini=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate(),+hh[0],+hh[1]),fin=new Date(ini.getTime()+(+$("cD").value)*60000);
+  var o={paciente_id:$("cP").value,terapeuta_id:$("cT").value,inicio:ini.toISOString(),fin:fin.toISOString(),estado:$("cS").value};
+  $("cSv").disabled=true;
+  var q=EC?sb.from("citas").update(o).eq("id",EC.id):sb.from("citas").insert(o);
+  q.then(function(r){$("cSv").disabled=false;if(r.error){say("mCm","err",errp(r.error));return}cerrar("mC");cargarCitas()});
+};
+$("cDel").onclick=function(){
+  if(!EC||!confirm("¿Eliminar esta cita?"))return;
+  sb.from("citas").delete().eq("id",EC.id).then(function(r){if(r.error){say("mCm","err",errp(r.error));return}cerrar("mC");cargarCitas()});
+};
+$("modAg").onclick=function(){
+  show("vAg");GD=new Date();GT=(ME&&ME.rol==="terapeuta")?ME.id:"all";
+  cargarPac(function(){sb.from("perfiles").select("id,nombre").eq("activo",true).in("rol",["admin","terapeuta"]).order("nombre").then(function(r){TEAM=r.error?[]:r.data;chipsT();cargarCitas()})});
+};
+$("gBack").onclick=function(){route()};
+$("gPrev").onclick=function(){GD=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()-1);cargarCitas()};
+$("gNext").onclick=function(){GD=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()+1);cargarCitas()};
+$("gDate").onchange=function(){var q=this.value.split("-");if(q.length===3){GD=new Date(+q[0],+q[1]-1,+q[2]);cargarCitas()}};
+setInterval(function(){if($("vAg").className.indexOf("hide")<0&&$("mC").className.indexOf("show")<0){cargarCitas()}},45000);
 setMode("in");
 </script>
 </body>

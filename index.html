@@ -66,6 +66,27 @@ input[type=range]{padding:0}
 .bd{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px}
 .bd.f{background:#d7f2e0;color:#14532d}.bd.b{background:#fff3cf;color:#7a5a00}
 .fix{border-left:3px solid var(--bd);padding-left:10px;margin-top:8px;color:var(--mut);font-size:13px}
+#hTabs .tab{font-size:13px;padding:10px 2px}
+.rg{fill:var(--priL);stroke:var(--pri);stroke-width:1.2;cursor:pointer}
+.rg.o{fill:#e5484d}
+.rg.i{fill:#f5a524}
+.seg{display:flex;gap:6px;margin-bottom:8px}
+.seg button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:14px;cursor:pointer}
+.seg button.on{background:var(--priL);border-color:var(--pri);font-weight:600}
+.lg{display:flex;gap:14px;font-size:13px;color:var(--mut);margin:6px 0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.up{display:block;text-align:center;padding:13px;border-radius:12px;background:var(--pri);color:var(--bg);font-weight:600;margin-top:12px;cursor:pointer;font-size:16px}
+.fc{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+.ft{width:100%;height:120px;object-fit:cover;display:block;cursor:pointer}
+.ft.pdf{display:flex;align-items:center;justify-content:center;font-size:34px;background:var(--priL)}
+.fm{padding:8px;font-size:12px;color:var(--mut)}
+.fm b{display:block;color:var(--tx);font-size:13px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;flex-direction:column;z-index:30;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.ov.show{display:flex}
+.ov>button{align-self:flex-end;margin:12px;padding:8px 14px;border-radius:10px;border:0;background:#fff;color:#000;font-size:15px}
+#ovc{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;min-height:0}
+#ovc img{max-width:100%;max-height:100%}
+#ovc iframe{width:100%;height:100%;border:0;background:#fff}
 .sm{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;margin:8px 8px 0 0}
 </style>
 </head>
@@ -158,7 +179,7 @@ input[type=range]{padding:0}
   <!-- Historia clínica -->
   <div class="hide" id="vHC">
     <div class="top"><div><h1 id="hN"></h1><div class="sub" style="margin:2px 0 0">Historia clínica</div></div><button class="out" id="hBack">Volver</button></div>
-    <div class="tabs"><button class="tab on" id="hT1">Evaluación</button><button class="tab" id="hT2">Notas SOAP</button></div>
+    <div class="tabs" id="hTabs"><button class="tab on" id="hT1">Evaluación</button><button class="tab" id="hT2">Notas SOAP</button><button class="tab" id="hT3">Cuerpo</button><button class="tab" id="hT4">Archivos</button></div>
     <div class="msg" id="mH"></div>
     <section id="hV1">
       <div class="card"><b>Anamnesis</b>
@@ -190,6 +211,24 @@ input[type=range]{padding:0}
         <button class="btn" id="nAdd">Guardar borrador</button></div>
       <div id="nList" style="margin-top:10px"></div>
     </section>
+    <section id="hV3" class="hide">
+      <div class="card"><b>Mapa corporal del dolor</b>
+        <div class="seg" style="margin-top:8px"><button id="bvf" class="on">Frente</button><button id="bvb">Espalda</button></div>
+        <div class="seg"><button id="bmo" class="on">Origen</button><button id="bmi">Se expande</button></div>
+        <svg id="bsvg" viewBox="0 0 200 400" width="100%" style="max-height:440px" role="img" aria-label="Cuerpo humano"></svg>
+        <div class="sub">Elige Origen o Se expande y toca una zona. Toca otra vez para quitarla.</div></div>
+      <div class="card" style="margin-top:10px"><b>Resumen</b><div id="bsum"></div>
+        <label>Descripción de la irradiación</label><textarea id="bnote" placeholder="Ej. Baja por la parte posterior del muslo hasta la rodilla"></textarea>
+        <button class="btn" id="bsave">Guardar mapa</button></div>
+    </section>
+    <section id="hV4" class="hide">
+      <div class="card"><b>Agregar archivo</b>
+        <label>Tipo</label><select id="fTipo"><option value="resonancia">Resonancia</option><option value="rayos_x">Rayos X</option><option value="informe">Informe</option><option value="otro">Otro</option></select>
+        <label>Descripción (opcional)</label><input id="fDesc" placeholder="Ej. RM lumbar, octubre 2026">
+        <label class="up">Elegir foto o PDF<input type="file" id="fIn" accept="image/*,application/pdf" multiple style="display:none"></label></div>
+      <div class="grid" id="fGrid"></div>
+    </section>
+    <div class="ov" id="ov"><button id="ovx">Cerrar</button><div id="ovc"></div></div>
   </div>
 
   <!-- Equipo (solo administrador) -->
@@ -308,11 +347,11 @@ function route(){
     var ses=s.data&&s.data.session;
     if(recovery&&ses){show("vReset");return}
     if(!ses){show("vAuth");return}
-    sb.from("perfiles").select("nombre,rol,activo,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
+    sb.from("perfiles").select("nombre,rol,activo,centro_id,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
       if(r.error){show("vAuth");say("mAuth","err",traducir(r.error));return}
       if(!r.data){show("vOnb");return}
       if(!r.data.activo){show("vOff");return}
-      ME={id:ses.user.id,rol:r.data.rol};
+      ME={id:ses.user.id,rol:r.data.rol,cid:r.data.centro_id};
       $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";
       $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
       $("dU").textContent=r.data.nombre;
@@ -498,14 +537,14 @@ var HP=null,HE=null,NT=[],NM={};
 var EF=[["e_motivo","motivo_consulta"],["e_antec","antecedentes"],["e_med","medicacion"],["e_zona","zona_dolor"],["e_postura","postura_marcha"],["e_rom","rango_movimiento"],["e_pruebas","pruebas_especiales"],["e_diag","diagnostico"],["e_obj","objetivos"],["e_frec","frecuencia"]];
 function aud(a,t,r){sb.from("auditoria_accesos").insert({accion:a,tabla:t,registro_id:r||null,paciente_id:HP.id}).then(function(){})}
 function fch(d){return new Date(d).toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}
-function hTab(n){$("hV1").className=n===1?"":"hide";$("hV2").className=n===2?"":"hide";$("hT1").className="tab"+(n===1?" on":"");$("hT2").className="tab"+(n===2?" on":"")}
-$("hT1").onclick=function(){hTab(1)};$("hT2").onclick=function(){hTab(2)};
+function hTab(n){for(var i=1;i<=4;i++){$("hV"+i).className=i===n?"":"hide";$("hT"+i).className="tab"+(i===n?" on":"")}}
+$("hT1").onclick=function(){hTab(1)};$("hT2").onclick=function(){hTab(2)};$("hT3").onclick=function(){hTab(3);pintarMapa()};$("hT4").onclick=function(){hTab(4)};
 $("e_eva").oninput=function(){$("e_evav").textContent=this.value};
 $("n_eva").oninput=function(){$("n_evav").textContent=this.value};
 function abrirHC(p){
   HP=p;HE=null;NT=[];$("hN").textContent=p.nombre;hTab(1);clear("mH");cerrar("mP");show("vHC");
   ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
-  sb.from("perfiles").select("id,nombre").then(function(r){NM={};if(!r.error){r.data.forEach(function(x){NM[x.id]=x.nombre})}cargarEval();cargarNotas()});
+  sb.from("perfiles").select("id,nombre").then(function(r){NM={};if(!r.error){r.data.forEach(function(x){NM[x.id]=x.nombre})}cargarEval();cargarNotas();cargarMapa();cargarArch()});
   aud("ver","historia",null);
 }
 $("pHC").onclick=function(){if(EP)abrirHC(EP)};
@@ -573,6 +612,120 @@ $("nAdd").onclick=function(){
     say("mH","ok","Borrador guardado. Fírmalo cuando termines.");aud("crear","notas_clinicas",r.data&&r.data[0]&&r.data[0].id);cargarNotas();
   });
 };
+var BV="front",BM="o",BZ={},HM=null,AR=[];
+var BR=[
+["head","Cabeza","Cabeza (nuca)",0,"a","ellipse",'cx="100" cy="30" rx="22" ry="26"'],
+["neck","Cuello","Cervical",0,"o","rect",'x="90" y="54" width="20" height="16" rx="6"'],
+["sho1","Hombro","Hombro",1,"o","ellipse",'cx="62" cy="84" rx="14" ry="12"'],
+["sho2","Hombro","Hombro",2,"o","ellipse",'cx="138" cy="84" rx="14" ry="12"'],
+["tr1","Tórax","Dorsal",0,"o","rect",'x="74" y="76" width="52" height="46" rx="10"'],
+["tr2","Abdomen","Lumbar",0,"o","rect",'x="76" y="124" width="48" height="40" rx="10"'],
+["arm1","Brazo","Brazo",1,"o","rect",'x="40" y="98" width="18" height="58" rx="9"'],
+["arm2","Brazo","Brazo",2,"o","rect",'x="142" y="98" width="18" height="58" rx="9"'],
+["fo1","Antebrazo","Antebrazo",1,"o","rect",'x="34" y="158" width="16" height="54" rx="8"'],
+["fo2","Antebrazo","Antebrazo",2,"o","rect",'x="150" y="158" width="16" height="54" rx="8"'],
+["ha1","Mano","Mano",1,"a","ellipse",'cx="40" cy="226" rx="10" ry="14"'],
+["ha2","Mano","Mano",2,"a","ellipse",'cx="160" cy="226" rx="10" ry="14"'],
+["hi1","Cadera","Región glútea",1,"a","ellipse",'cx="86" cy="178" rx="17" ry="16"'],
+["hi2","Cadera","Región glútea",2,"a","ellipse",'cx="114" cy="178" rx="17" ry="16"'],
+["th1","Muslo","Muslo posterior",1,"o","rect",'x="70" y="194" width="26" height="80" rx="12"'],
+["th2","Muslo","Muslo posterior",2,"o","rect",'x="104" y="194" width="26" height="80" rx="12"'],
+["kn1","Rodilla","Zona poplítea",1,"a","ellipse",'cx="83" cy="283" rx="14" ry="11"'],
+["kn2","Rodilla","Zona poplítea",2,"a","ellipse",'cx="117" cy="283" rx="14" ry="11"'],
+["le1","Pierna","Pantorrilla",1,"a","rect",'x="71" y="295" width="24" height="68" rx="11"'],
+["le2","Pierna","Pantorrilla",2,"a","rect",'x="105" y="295" width="24" height="68" rx="11"'],
+["fe1","Pie","Pie",1,"o","ellipse",'cx="83" cy="378" rx="14" ry="9"'],
+["fe2","Pie","Pie",2,"o","ellipse",'cx="117" cy="378" rx="14" ry="9"']
+];
+function bn(r,v){v=v||BV;var n=v==="front"?r[1]:r[2];if(!r[3])return n;return n+" "+(((r[3]===1)===(v==="front"))?"derech":"izquierd")+r[4]}
+function pintarMapa(){
+  var h="";
+  BR.forEach(function(r){var k=BV+":"+r[0];h+="<"+r[5]+' class="rg '+(BZ[k]||"")+'" data-k="'+k+'" '+r[6]+"><title>"+bn(r)+"</title></"+r[5]+">"});
+  $("bsvg").innerHTML=h;
+  $("bsvg").querySelectorAll(".rg").forEach(function(e){e.onclick=function(){var k=e.getAttribute("data-k");if(BZ[k]===BM){delete BZ[k]}else{BZ[k]=BM}pintarMapa()}});
+  var o=[],i=[];
+  ["front","back"].forEach(function(v){BR.forEach(function(r){var m=BZ[v+":"+r[0]];if(m==="o")o.push(bn(r,v));if(m==="i")i.push(bn(r,v))})});
+  $("bsum").innerHTML='<div class="lg"><span><i class="dot" style="background:#e5484d"></i>Origen</span><span><i class="dot" style="background:#f5a524"></i>Se expande</span></div><p class="pre"><b>Origen:</b> '+(o.length?o.join(", "):"sin marcar")+'</p><p class="pre"><b>Se expande a:</b> '+(i.length?i.join(", "):"sin marcar")+"</p>";
+}
+$("bvf").onclick=function(){BV="front";$("bvf").className="on";$("bvb").className="";pintarMapa()};
+$("bvb").onclick=function(){BV="back";$("bvb").className="on";$("bvf").className="";pintarMapa()};
+$("bmo").onclick=function(){BM="o";$("bmo").className="on";$("bmi").className=""};
+$("bmi").onclick=function(){BM="i";$("bmi").className="on";$("bmo").className=""};
+function cargarMapa(){
+  HM=null;BZ={};$("bnote").value="";
+  sb.from("mapas_dolor").select("id,descripcion,mapa_dolor_zonas(vista,zona,tipo)").eq("paciente_id",HP.id).order("creado_en",{ascending:false}).limit(1).then(function(r){
+    if(r.error){say("mH","err",errp(r.error));return}
+    if(r.data[0]){HM=r.data[0].id;$("bnote").value=r.data[0].descripcion||"";(r.data[0].mapa_dolor_zonas||[]).forEach(function(z){BZ[z.vista+":"+z.zona]=z.tipo==="origen"?"o":"i"})}
+    pintarMapa();
+  });
+}
+$("bsave").onclick=function(){
+  var nota=$("bnote").value.trim()||null;
+  function zonas(id){
+    sb.from("mapa_dolor_zonas").delete().eq("mapa_id",id).then(function(d){
+      if(d.error){say("mH","err",errp(d.error));return}
+      var L=Object.keys(BZ).map(function(k){var q=k.split(":");return{mapa_id:id,vista:q[0],zona:q[1],tipo:BZ[k]==="o"?"origen":"expansion"}});
+      if(!L.length){say("mH","ok","Mapa guardado.");return}
+      sb.from("mapa_dolor_zonas").insert(L).then(function(x){if(x.error){say("mH","err",errp(x.error))}else{say("mH","ok","Mapa guardado.");aud("editar","mapas_dolor",id)}});
+    });
+  }
+  if(HM){sb.from("mapas_dolor").update({descripcion:nota}).eq("id",HM).then(function(u){if(u.error){say("mH","err",errp(u.error))}else{zonas(HM)}})}
+  else{sb.from("mapas_dolor").insert({paciente_id:HP.id,descripcion:nota}).select("id").single().then(function(i){if(i.error){say("mH","err",errp(i.error))}else{HM=i.data.id;zonas(HM)}})}
+};
+
+/* Archivos clínicos */
+var TL={resonancia:"Resonancia",rayos_x:"Rayos X",informe:"Informe",otro:"Otro"};
+function prepArch(f,cb){
+  if(f.type==="application/pdf"){if(f.size>10485760){say("mH","err","El PDF supera 10 MB.");return}cb(f,"application/pdf",f.name);return}
+  if(f.type.indexOf("image/")!==0){say("mH","err","Solo se aceptan fotos o PDF.");return}
+  var rd=new FileReader();
+  rd.onload=function(){var im=new Image();im.onload=function(){var sc=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){cb(b,"image/jpeg",f.name.replace(/\.[^.]+$/,"")+".jpg")},"image/jpeg",0.8)};im.onerror=function(){say("mH","err","No se pudo leer la imagen.")};im.src=rd.result};
+  rd.readAsDataURL(f);
+}
+$("fIn").onchange=function(){var fl=Array.prototype.slice.call(this.files);this.value="";fl.forEach(function(f){
+  if(!ME||!ME.cid){say("mH","err","No se pudo identificar tu centro.");return}
+  prepArch(f,function(blob,mime,name){
+    var path=ME.cid+"/"+HP.id+"/"+Date.now()+"-"+name.replace(/[^A-Za-z0-9._-]/g,"_");
+    say("mH","ok","Subiendo "+name+"...");
+    sb.storage.from("clinicos").upload(path,blob,{contentType:mime}).then(function(u){
+      if(u.error){say("mH","err","No se pudo subir el archivo: "+u.error.message);return}
+      sb.from("archivos_clinicos").insert({paciente_id:HP.id,tipo:$("fTipo").value,descripcion:$("fDesc").value.trim()||null,nombre_archivo:name,ruta_storage:path,mime:mime,tamano_bytes:blob.size}).select("id").then(function(r){
+        if(r.error){say("mH","err",errp(r.error));sb.storage.from("clinicos").remove([path]);return}
+        say("mH","ok","Archivo guardado.");aud("crear","archivos_clinicos",r.data&&r.data[0]&&r.data[0].id);cargarArch();
+      });
+    });
+  });
+})};
+function cargarArch(){
+  sb.from("archivos_clinicos").select("*").eq("paciente_id",HP.id).order("subido_en",{ascending:false}).then(function(r){
+    if(r.error){say("mH","err",errp(r.error));return}
+    AR=r.data;
+    if(!AR.length){pintarArch({});return}
+    sb.storage.from("clinicos").createSignedUrls(AR.map(function(a){return a.ruta_storage}),3600).then(function(u){
+      var m={};if(!u.error&&u.data){u.data.forEach(function(x){if(x.signedUrl)m[x.path]=x.signedUrl})}
+      pintarArch(m);
+    });
+  });
+}
+function verArch(a,url){
+  if(!url){say("mH","err","No se pudo abrir el archivo.");return}
+  $("ovc").innerHTML="";
+  var e=a.mime==="application/pdf"?document.createElement("iframe"):document.createElement("img");e.src=url;$("ovc").appendChild(e);
+  $("ov").className="ov show";aud("ver","archivos_clinicos",a.id);
+}
+$("ovx").onclick=function(){$("ov").className="ov";$("ovc").innerHTML=""};
+function pintarArch(m){
+  var box=$("fGrid");box.innerHTML="";
+  if(!AR.length){box.appendChild(el("div","sub","Aún no hay archivos."));return}
+  AR.forEach(function(a){
+    var c=el("div","fc"),url=m[a.ruta_storage],th;
+    if(a.mime==="application/pdf"){th=el("div","ft pdf","📄")}else{th=el("img","ft");if(url)th.src=url;th.alt=TL[a.tipo]||a.tipo}
+    th.onclick=function(){verArch(a,url)};c.appendChild(th);
+    var f=el("div","fm");f.appendChild(el("b",null,TL[a.tipo]||a.tipo));f.appendChild(document.createTextNode((a.descripcion||a.nombre_archivo)+" · "+fch(a.subido_en)));
+    if(ME&&ME.rol==="admin"){f.appendChild(document.createElement("br"));var d=el("button","sm","Eliminar");d.style.margin="6px 0 0";d.onclick=function(){if(!confirm("¿Eliminar este archivo?"))return;sb.from("archivos_clinicos").delete().eq("id",a.id).then(function(r){if(r.error){say("mH","err",errp(r.error));return}sb.storage.from("clinicos").remove([a.ruta_storage]);cargarArch()})};f.appendChild(d)}
+    c.appendChild(f);box.appendChild(c);
+  });
+}
 setMode("in");
 </script>
 </body>

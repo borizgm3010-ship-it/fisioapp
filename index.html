@@ -59,6 +59,14 @@ select.sel{width:auto}
 .modal.show{display:flex}
 .sheet{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow:auto}
 .sheet h2{margin:0 0 4px;font-size:17px}
+textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px;font-family:inherit;min-height:70px;resize:vertical}
+input[type=range]{padding:0}
+.pre{white-space:pre-wrap;margin:6px 0;font-size:14px}
+.pre b{color:var(--pri)}
+.bd{display:inline-block;font-size:12px;padding:3px 9px;border-radius:999px}
+.bd.f{background:#d7f2e0;color:#14532d}.bd.b{background:#fff3cf;color:#7a5a00}
+.fix{border-left:3px solid var(--bd);padding-left:10px;margin-top:8px;color:var(--mut);font-size:13px}
+.sm{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;margin:8px 8px 0 0}
 </style>
 </head>
 <body>
@@ -123,6 +131,7 @@ select.sel{width:auto}
       <label for="pt">Teléfono</label><input id="pt" inputmode="tel">
       <label for="pe">Correo</label><input id="pe" type="email">
       <label for="pf">Fecha de nacimiento</label><input id="pf" type="date">
+      <button class="out" id="pHC" style="width:100%;margin-top:12px;display:none">Abrir historia clínica</button>
       <div class="msg" id="mPm"></div>
       <div class="row"><button class="out" id="pCx">Cancelar</button><button class="out" id="pDel" style="color:#c0392b">Eliminar</button><button class="btn" id="pSv" style="margin:0;flex:2">Guardar</button></div>
     </div></div>
@@ -144,6 +153,43 @@ select.sel{width:auto}
       <div class="msg" id="mCm"></div>
       <div class="row"><button class="out" id="cCx">Cancelar</button><button class="out" id="cDel" style="color:#c0392b">Eliminar</button><button class="btn" id="cSv" style="margin:0;flex:2">Guardar</button></div>
     </div></div>
+  </div>
+
+  <!-- Historia clínica -->
+  <div class="hide" id="vHC">
+    <div class="top"><div><h1 id="hN"></h1><div class="sub" style="margin:2px 0 0">Historia clínica</div></div><button class="out" id="hBack">Volver</button></div>
+    <div class="tabs"><button class="tab on" id="hT1">Evaluación</button><button class="tab" id="hT2">Notas SOAP</button></div>
+    <div class="msg" id="mH"></div>
+    <section id="hV1">
+      <div class="card"><b>Anamnesis</b>
+        <label>Motivo de consulta</label><textarea id="e_motivo"></textarea>
+        <label>Antecedentes médicos y quirúrgicos</label><textarea id="e_antec"></textarea>
+        <label>Medicación actual</label><input id="e_med"></div>
+      <div class="card" style="margin-top:10px"><b>Dolor</b>
+        <label>Zona</label><input id="e_zona" placeholder="Ej. Región lumbar baja, lado derecho">
+        <label>EVA inicial: <b id="e_evav">5</b>/10</label><input type="range" id="e_eva" min="0" max="10" value="5"></div>
+      <div class="card" style="margin-top:10px"><b>Examen físico</b>
+        <label>Postura y marcha</label><textarea id="e_postura"></textarea>
+        <div class="g2"><div><label>Rango de movimiento</label><input id="e_rom"></div><div><label>Fuerza (0 a 5)</label><select id="e_fz"><option>0</option><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select></div></div>
+        <label>Pruebas especiales</label><textarea id="e_pruebas"></textarea></div>
+      <div class="card" style="margin-top:10px"><b>Diagnóstico y plan</b>
+        <label>Diagnóstico fisioterapéutico</label><textarea id="e_diag"></textarea>
+        <label>Objetivos</label><textarea id="e_obj"></textarea>
+        <div class="g2"><div><label>Nº de sesiones</label><input id="e_nses" type="number" inputmode="numeric"></div><div><label>Frecuencia</label><input id="e_frec" placeholder="2 veces por semana"></div></div>
+        <label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="e_cons" style="width:auto"> Consentimiento informado firmado</label>
+        <button class="btn" id="eSv">Guardar evaluación</button></div>
+    </section>
+    <section id="hV2" class="hide">
+      <div class="card"><b>Evolución del dolor (EVA)</b><svg id="nChart" viewBox="0 0 300 90" width="100%" role="img" aria-label="Evolución del dolor"></svg></div>
+      <div class="card" style="margin-top:10px"><b>Nueva nota de sesión</b>
+        <label><b>S</b> · Subjetivo (lo que refiere el paciente)</label><textarea id="n_s"></textarea>
+        <label><b>O</b> · Objetivo (lo que mides)</label><textarea id="n_o"></textarea>
+        <label><b>A</b> · Análisis (evolución)</label><textarea id="n_a"></textarea>
+        <label><b>P</b> · Plan (próxima sesión y tareas)</label><textarea id="n_p"></textarea>
+        <label>EVA hoy: <b id="n_evav">5</b>/10</label><input type="range" id="n_eva" min="0" max="10" value="5">
+        <button class="btn" id="nAdd">Guardar borrador</button></div>
+      <div id="nList" style="margin-top:10px"></div>
+    </section>
   </div>
 
   <!-- Equipo (solo administrador) -->
@@ -188,7 +234,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -359,7 +405,7 @@ function listaPac(){
 function abrirPac(p){
   EP=p||null;$("mPt").textContent=p?"Editar paciente":"Nuevo paciente";
   $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pe").value=(p&&p.email)||"";$("pf").value=(p&&p.fecha_nacimiento)||"";
-  $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";clear("mPm");$("mP").className="modal show";
+  $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";$("pHC").style.display=(p&&ME&&ME.rol!=="recepcion")?"block":"none";clear("mPm");$("mP").className="modal show";
 }
 $("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarPac(listaPac)};
 $("pQ").oninput=listaPac;
@@ -447,6 +493,85 @@ $("gPrev").onclick=function(){GD=new Date(GD.getFullYear(),GD.getMonth(),GD.getD
 $("gNext").onclick=function(){GD=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()+1);cargarCitas()};
 $("gDate").onchange=function(){var q=this.value.split("-");if(q.length===3){GD=new Date(+q[0],+q[1]-1,+q[2]);cargarCitas()}};
 setInterval(function(){if($("vAg").className.indexOf("hide")<0&&$("mC").className.indexOf("show")<0){cargarCitas()}},45000);
+var HP=null,HE=null,NT=[],NM={};
+var EF=[["e_motivo","motivo_consulta"],["e_antec","antecedentes"],["e_med","medicacion"],["e_zona","zona_dolor"],["e_postura","postura_marcha"],["e_rom","rango_movimiento"],["e_pruebas","pruebas_especiales"],["e_diag","diagnostico"],["e_obj","objetivos"],["e_frec","frecuencia"]];
+function aud(a,t,r){sb.from("auditoria_accesos").insert({accion:a,tabla:t,registro_id:r||null,paciente_id:HP.id}).then(function(){})}
+function fch(d){return new Date(d).toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}
+function hTab(n){$("hV1").className=n===1?"":"hide";$("hV2").className=n===2?"":"hide";$("hT1").className="tab"+(n===1?" on":"");$("hT2").className="tab"+(n===2?" on":"")}
+$("hT1").onclick=function(){hTab(1)};$("hT2").onclick=function(){hTab(2)};
+$("e_eva").oninput=function(){$("e_evav").textContent=this.value};
+$("n_eva").oninput=function(){$("n_evav").textContent=this.value};
+function abrirHC(p){
+  HP=p;HE=null;NT=[];$("hN").textContent=p.nombre;hTab(1);clear("mH");cerrar("mP");show("vHC");
+  ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
+  sb.from("perfiles").select("id,nombre").then(function(r){NM={};if(!r.error){r.data.forEach(function(x){NM[x.id]=x.nombre})}cargarEval();cargarNotas()});
+  aud("ver","historia",null);
+}
+$("pHC").onclick=function(){if(EP)abrirHC(EP)};
+$("hBack").onclick=function(){show("vPac");listaPac()};
+function cargarEval(){
+  sb.from("evaluaciones").select("*").eq("paciente_id",HP.id).order("creado_en",{ascending:false}).limit(1).then(function(r){
+    if(r.error){say("mH","err",errp(r.error));return}
+    HE=r.data[0]||null;
+    EF.forEach(function(f){$(f[0]).value=(HE&&HE[f[1]])||""});
+    $("e_eva").value=(HE&&HE.eva_inicial!=null)?HE.eva_inicial:5;$("e_evav").textContent=$("e_eva").value;
+    $("e_fz").value=(HE&&HE.fuerza!=null)?HE.fuerza:4;$("e_nses").value=(HE&&HE.sesiones_planificadas)||"";$("e_cons").checked=!!(HE&&HE.consentimiento);
+    chartHC();
+  });
+}
+$("eSv").onclick=function(){
+  var o={paciente_id:HP.id};
+  EF.forEach(function(f){o[f[1]]=$(f[0]).value.trim()||null});
+  o.eva_inicial=+$("e_eva").value;o.fuerza=+$("e_fz").value;o.sesiones_planificadas=+$("e_nses").value||null;o.consentimiento=$("e_cons").checked;
+  if(o.consentimiento&&!(HE&&HE.consentimiento)){o.consentimiento_en=new Date().toISOString()}
+  var q=HE?sb.from("evaluaciones").update(o).eq("id",HE.id):sb.from("evaluaciones").insert(o);
+  q.then(function(r){if(r.error){say("mH","err",errp(r.error));return}say("mH","ok","Evaluación guardada.");aud(HE?"editar":"crear","evaluaciones",HE&&HE.id);cargarEval()});
+};
+function cargarNotas(){
+  sb.from("notas_clinicas").select("*,correcciones_nota(id,texto,creado_en,autor_id)").eq("paciente_id",HP.id).order("creado_en").then(function(r){
+    if(r.error){say("mH","err",errp(r.error));return}
+    NT=r.data;pintarNotas();chartHC();
+  });
+}
+function chartHC(){
+  var pts=[];if(HE&&HE.eva_inicial!=null)pts.push(HE.eva_inicial);
+  NT.forEach(function(n){if(n.eva!=null)pts.push(n.eva)});
+  var o='<line x1="20" y1="10" x2="20" y2="75" stroke="currentColor" opacity=".25"/><line x1="20" y1="75" x2="290" y2="75" stroke="currentColor" opacity=".25"/>';
+  if(pts.length){
+    var xy=pts.map(function(v,i){return[pts.length===1?150:30+i*(250/(pts.length-1)),75-v*6.2,v]});
+    o+='<polyline fill="none" stroke="#0f9d8a" stroke-width="2.5" points="'+xy.map(function(p){return p[0]+","+p[1]}).join(" ")+'"/>';
+    xy.forEach(function(p){o+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4" fill="#0f9d8a"/><text x="'+p[0]+'" y="'+(p[1]-8)+'" font-size="10" text-anchor="middle" fill="currentColor">'+p[2]+'</text>'});
+  }
+  $("nChart").innerHTML=o;
+}
+function pintarNotas(){
+  var box=$("nList");box.innerHTML="";
+  if(!NT.length){box.appendChild(el("div","sub","Aún no hay notas de sesión."));return}
+  NT.slice().reverse().forEach(function(n){
+    var c=el("div","card");c.style.marginBottom="10px";
+    var t=el("div","top");t.appendChild(el("b",null,fch(n.creado_en)+(n.eva!=null?" · EVA "+n.eva:"")));t.appendChild(el("span","bd "+(n.firmada?"f":"b"),n.firmada?"Firmada":"Borrador"));c.appendChild(t);
+    c.appendChild(el("div","sub",NM[n.terapeuta_id]||"Terapeuta"));
+    [["S",n.subjetivo],["O",n.objetivo],["A",n.analisis],["P",n.plan]].forEach(function(x){var p=el("p","pre");p.appendChild(el("b",null,x[0]+" "));p.appendChild(document.createTextNode(x[1]||""));c.appendChild(p)});
+    (n.correcciones_nota||[]).forEach(function(k){c.appendChild(el("div","fix","Corrección ("+fch(k.creado_en)+", "+(NM[k.autor_id]||"")+"): "+k.texto))});
+    var own=ME&&n.terapeuta_id===ME.id;
+    if(n.firmada){
+      var b=el("button","sm","Agregar corrección");b.onclick=function(){var tx=prompt("Texto de la corrección:");if(tx&&tx.trim()){sb.from("correcciones_nota").insert({nota_id:n.id,texto:tx.trim()}).then(function(r){if(r.error){say("mH","err",errp(r.error))}else{aud("editar","correcciones_nota",n.id);cargarNotas()}})}};c.appendChild(b);
+    }else if(own){
+      var f=el("button","sm","Firmar y bloquear");f.onclick=function(){if(!confirm("Una nota firmada ya no se puede editar ni borrar. ¿Firmar?"))return;sb.from("notas_clinicas").update({firmada:true}).eq("id",n.id).then(function(r){if(r.error){say("mH","err",errp(r.error))}else{aud("firmar","notas_clinicas",n.id);cargarNotas()}})};c.appendChild(f);
+      var d=el("button","sm","Eliminar borrador");d.onclick=function(){if(!confirm("¿Eliminar este borrador?"))return;sb.from("notas_clinicas").delete().eq("id",n.id).then(function(r){if(r.error){say("mH","err",errp(r.error))}else{cargarNotas()}})};c.appendChild(d);
+    }
+    box.appendChild(c);
+  });
+}
+$("nAdd").onclick=function(){
+  var o={paciente_id:HP.id,subjetivo:$("n_s").value.trim()||null,objetivo:$("n_o").value.trim()||null,analisis:$("n_a").value.trim()||null,plan:$("n_p").value.trim()||null,eva:+$("n_eva").value};
+  if(!o.subjetivo&&!o.objetivo){say("mH","err","Escribe al menos S u O.");return}
+  sb.from("notas_clinicas").insert(o).select("id").then(function(r){
+    if(r.error){say("mH","err",errp(r.error));return}
+    ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
+    say("mH","ok","Borrador guardado. Fírmalo cuando termines.");aud("crear","notas_clinicas",r.data&&r.data[0]&&r.data[0].id);cargarNotas();
+  });
+};
 setMode("in");
 </script>
 </body>

@@ -213,7 +213,7 @@ input[type=range]{padding:0}
     <div class="grid">
       <div class="mod" id="modAg" style="cursor:pointer"><b>Agenda</b><span>Citas por terapeuta</span></div>
       <div class="mod" id="modPac" style="cursor:pointer"><b>Pacientes</b><span>Fichas y búsqueda</span></div>
-      <div class="mod"><b>Historia clínica</b><span>Próximamente</span></div>
+      <div class="mod" id="modHC" style="cursor:pointer"><b>Historia clínica</b><span>Elige un paciente</span></div>
       <div class="mod"><b>Pagos y paquetes</b><span>Próximamente</span></div>
       <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
     </div>
@@ -408,6 +408,7 @@ function abrirPac(p){
   $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";$("pHC").style.display=(p&&ME&&ME.rol!=="recepcion")?"block":"none";clear("mPm");$("mP").className="modal show";
 }
 $("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarPac(listaPac)};
+$("modHC").onclick=$("modPac").onclick;
 $("pQ").oninput=listaPac;
 $("pNew").onclick=function(){abrirPac(null)};
 $("pBack").onclick=function(){route()};

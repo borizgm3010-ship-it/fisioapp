@@ -162,6 +162,7 @@ input[type=range]{padding:0}
   <div class="hide" id="vAg">
     <div class="top"><h1>Agenda</h1><button class="out" id="gBack">Volver</button></div>
     <div class="row" style="margin:0"><button class="out" id="gPrev" style="flex:1">‹</button><input id="gDate" type="date" style="flex:4"><button class="out" id="gNext" style="flex:1">›</button></div>
+    <div class="chips" id="gSed"></div>
     <div class="chips" id="gThr"></div>
     <div class="msg" id="mAg"></div>
     <div id="gList"></div>
@@ -169,6 +170,7 @@ input[type=range]{padding:0}
       <h2 id="mCt">Nueva cita</h2>
       <label for="cQ">Paciente</label><input id="cQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="cP"></select>
       <label for="cT">Terapeuta</label><select id="cT"></select>
+      <label for="cL">Local</label><select id="cL"></select>
       <div class="g2"><div><label for="cH">Hora</label><select id="cH"></select></div><div><label for="cD">Duración</label><select id="cD"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>60 min</option></select></div></div>
       <label for="cS">Estado</label><select id="cS"><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="atendida">Atendida</option><option value="cancelada">Cancelada</option><option value="no_asistio">No asistió</option></select>
       <div class="msg" id="mCm"></div>
@@ -237,7 +239,8 @@ input[type=range]{padding:0}
     <div class="tabs"><button class="tab on" id="yT1">Cobrar</button><button class="tab" id="yT2">Historial</button><button class="tab" id="yT3">Catálogo</button></div>
     <div class="msg" id="mY"></div>
     <section id="yV1">
-      <div class="card"><label style="margin-top:0">Paciente</label><input id="yQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="yP"></select><div id="ySaldo" style="margin-top:10px"></div></div>
+      <div class="card"><label style="margin-top:0">Local</label><select id="ySede"></select></div>
+      <div class="card" style="margin-top:10px"><label style="margin-top:0">Paciente</label><input id="yQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="yP"></select><div id="ySaldo" style="margin-top:10px"></div></div>
       <div class="card" style="margin-top:10px"><b>Vender paquete</b>
         <label>Paquete</label><select id="yPk"></select>
         <div class="g2"><div><label>Monto cobrado (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
@@ -249,6 +252,7 @@ input[type=range]{padding:0}
     </section>
     <section id="yV2" class="hide">
       <div class="card"><div class="g2"><div><b id="yHoy">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado hoy</div></div><div><b id="yMes">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado este mes</div></div></div></div>
+      <div id="ySedes"></div>
       <div id="yHist" style="margin-top:10px"></div>
     </section>
     <section id="yV3" class="hide">
@@ -271,6 +275,10 @@ input[type=range]{padding:0}
       <div class="row"><button class="out" id="tCopy">Copiar código</button><button class="out" id="tNew">Cambiar código</button></div>
       <div class="msg" id="mTeam"></div>
     </div>
+    <div class="card" style="margin-top:10px"><b>Locales</b>
+      <div id="lList" style="margin-top:6px"></div>
+      <div class="g2"><div><label>Nombre del local</label><input id="lNom" placeholder="Ej. Cieneguilla"></div><div><label>Dirección</label><input id="lDir" placeholder="Opcional"></div></div>
+      <button class="btn" id="lAdd">Agregar local</button><div class="msg" id="mL"></div></div>
     <div class="card" style="margin-top:10px"><b>Reserva online</b>
       <div class="sub" style="margin:2px 0 0">Tus pacientes agendan solos desde un enlace.</div>
       <label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="rOn" style="width:auto"> Activar reserva online</label>
@@ -426,14 +434,14 @@ $("jn").onclick=function(){
 function loadTeam(){
   $("tCode").textContent="········";
   sb.rpc("mi_codigo").then(function(r){if(r.error){say("mTeam","err",traducir(r.error))}else{$("tCode").textContent=r.data}});
-  sb.from("perfiles").select("id,nombre,email,rol,activo").order("nombre").then(function(r){
+  sb.from("perfiles").select("id,nombre,email,rol,activo,sedes").order("nombre").then(function(r){
     var box=$("tList");box.innerHTML="";
     if(r.error){say("mTeam","err",traducir(r.error));return}
     r.data.forEach(function(p){
       var c=document.createElement("div");c.className="card";c.style.marginTop="10px";
       var n=document.createElement("b");n.textContent=p.nombre+(ME&&p.id===ME.id?" (tú)":"");
       var e=document.createElement("div");e.className="sub";e.style.margin="2px 0 8px";e.textContent=(p.email||"")+(p.activo?"":" · desactivado");
-      c.appendChild(n);c.appendChild(e);
+      c.appendChild(n);c.appendChild(e);sedesUI(c,p);
       if(ME&&p.id!==ME.id){
         var sel=document.createElement("select");sel.className="sel";
         [["admin","Administrador"],["terapeuta","Terapeuta"],["recepcion","Recepción"]].forEach(function(o){var op=document.createElement("option");op.value=o[0];op.textContent=o[1];if(o[0]===p.rol)op.selected=true;sel.appendChild(op)});
@@ -448,7 +456,7 @@ function loadTeam(){
     });
   });
 }
-$("modTeam").onclick=function(){show("vTeam");clear("mTeam");clear("mR");loadTeam();loadReserva()};
+$("modTeam").onclick=function(){show("vTeam");clear("mTeam");clear("mR");cargarSedes(function(){loadTeam();loadReserva();loadLocales()},true)};
 $("tBack").onclick=function(){route()};
 $("tWa").onclick=function(){
   var code=$("tCode").textContent,url=location.origin+location.pathname;
@@ -462,7 +470,7 @@ $("tNew").onclick=function(){
   if(!confirm("¿Cambiar el código? El anterior dejará de servir para nuevas personas.")){return}
   sb.rpc("regenerar_codigo").then(function(r){if(r.error){say("mTeam","err",traducir(r.error))}else{$("tCode").textContent=r.data;say("mTeam","ok","Código cambiado.")}});
 };
-var TEAM=[],PACS=[],CITAS=[],GD=new Date(),GT="all",EC=null,EP=null;
+var TEAM=[],PACS=[],CITAS=[],GD=new Date(),GT="all",GS="all",SEDES=[],HI=9,HF=21,EC=null,EP=null;
 var ES={pendiente:"Pendiente",confirmada:"Confirmada",atendida:"Atendida",cancelada:"Cancelada",no_asistio:"No asistió"};
 function pad(n){return(n<10?"0":"")+n}
 function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
@@ -511,18 +519,19 @@ function chipsT(){
 function cargarCitas(){
   var d0=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()),d1=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+1);
   $("gDate").value=ymd(GD);
-  sb.from("citas").select("id,paciente_id,terapeuta_id,inicio,fin,estado,origen,pacientes(nombre)").gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
+  sb.from("citas").select("id,paciente_id,terapeuta_id,sede_id,inicio,fin,estado,origen,pacientes(nombre)").gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
     if(r.error){say("mAg","err",errp(r.error));return}
     clear("mAg");CITAS=r.data;pintar();
   });
 }
 function pintar(){
   var box=$("gList");box.innerHTML="";
-  for(var h=7;h<=20;h++){
+  var h0=HI,h1=HF-1;CITAS.forEach(function(c){var hh=new Date(c.inicio).getHours();if(hh<h0)h0=hh;if(hh>h1)h1=hh});
+  for(var h=h0;h<=h1;h++){
     var row=el("div","slot");row.appendChild(el("div","hr",pad(h)+":00"));var col=el("div","sl");
-    CITAS.filter(function(c){return new Date(c.inicio).getHours()===h&&(GT==="all"||c.terapeuta_id===GT)}).forEach(function(c){
+    CITAS.filter(function(c){return new Date(c.inicio).getHours()===h&&(GT==="all"||c.terapeuta_id===GT)&&(GS==="all"||c.sede_id===GS)}).forEach(function(c){
       var a=el("button","ap s-"+c.estado);a.appendChild(el("b",null,(c.pacientes&&c.pacientes.nombre)||"Paciente"));
-      a.appendChild(el("small",null,nomT(c.terapeuta_id)+" · "+hm(new Date(c.inicio))+"–"+hm(new Date(c.fin))+" · "+ES[c.estado]+(c.origen==="online"?" · Reserva online":"")));
+      a.appendChild(el("small",null,nomT(c.terapeuta_id)+(GS==="all"&&c.sede_id?" · "+nomS(c.sede_id):"")+" · "+hm(new Date(c.inicio))+"–"+hm(new Date(c.fin))+" · "+ES[c.estado]+(c.origen==="online"?" · Reserva online":"")));
       a.onclick=function(){abrirCita(c)};col.appendChild(a);
     });
     var ad=el("button","add","+ Agendar");ad.onclick=(function(hh){return function(){abrirCita(null,hh)}})(h);col.appendChild(ad);
@@ -537,15 +546,17 @@ function llenarPac(sel){
 function abrirCita(c,h){
   if(!PACS.length){say("mAg","err","Primero crea al menos un paciente (menú Pacientes).");return}
   if(!TEAM.length){say("mAg","err","No hay terapeutas activos.");return}
+  if(!SEDES.length){say("mAg","err","No hay locales configurados. Créalos en Equipo.");return}
   EC=c||null;$("mCt").textContent=c?"Editar cita":"Nueva cita";$("cQ").value="";
   $("cT").innerHTML="";TEAM.forEach(function(t){$("cT").appendChild(opt(t.id,t.nombre))});
-  $("cH").innerHTML="";for(var x=7*60;x<=20*60;x+=30){$("cH").appendChild(opt(pad(Math.floor(x/60))+":"+pad(x%60),pad(Math.floor(x/60))+":"+pad(x%60)))}
+  $("cL").innerHTML="";SEDES.forEach(function(x){$("cL").appendChild(opt(x.id,x.nombre))});
+  $("cH").innerHTML="";for(var x=HI*60;x<=HF*60-30;x+=30){$("cH").appendChild(opt(pad(Math.floor(x/60))+":"+pad(x%60),pad(Math.floor(x/60))+":"+pad(x%60)))}
   if(c){
     var i=new Date(c.inicio),f=new Date(c.fin),dm=Math.round((f-i)/60000);
-    llenarPac(c.paciente_id);$("cT").value=c.terapeuta_id;$("cH").value=hm(i);$("cD").value=String([30,45,60].indexOf(dm)>=0?dm:60);$("cS").value=c.estado;
+    llenarPac(c.paciente_id);$("cT").value=c.terapeuta_id;if(!Array.prototype.some.call($("cH").options,function(o){return o.value===hm(i)})){$("cH").appendChild(opt(hm(i),hm(i)))}$("cH").value=hm(i);$("cL").value=c.sede_id||SEDES[0].id;$("cD").value=String([30,45,60].indexOf(dm)>=0?dm:60);$("cS").value=c.estado;
   }else{
     llenarPac(null);var pt=GT!=="all"?GT:(ME&&TEAM.some(function(t){return t.id===ME.id})?ME.id:TEAM[0].id);
-    $("cT").value=pt;$("cH").value=pad(h)+":00";$("cD").value="60";$("cS").value="pendiente";
+    $("cT").value=pt;$("cL").value=GS!=="all"?GS:SEDES[0].id;$("cH").value=pad(h)+":00";$("cD").value="60";$("cS").value="pendiente";
   }
   $("cDel").style.display=(c&&ME&&ME.rol==="admin")?"":"none";clear("mCm");$("mC").className="modal show";
 }
@@ -554,7 +565,7 @@ $("cCx").onclick=function(){cerrar("mC")};
 $("cSv").onclick=function(){
   if(!$("cP").value){say("mCm","err","Elige un paciente.");return}
   var hh=$("cH").value.split(":"),ini=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate(),+hh[0],+hh[1]),fin=new Date(ini.getTime()+(+$("cD").value)*60000);
-  var o={paciente_id:$("cP").value,terapeuta_id:$("cT").value,inicio:ini.toISOString(),fin:fin.toISOString(),estado:$("cS").value};
+  var o={paciente_id:$("cP").value,terapeuta_id:$("cT").value,sede_id:$("cL").value,inicio:ini.toISOString(),fin:fin.toISOString(),estado:$("cS").value};
   $("cSv").disabled=true;
   var q=EC?sb.from("citas").update(o).eq("id",EC.id):sb.from("citas").insert(o);
   q.then(function(r){$("cSv").disabled=false;if(r.error){say("mCm","err",errp(r.error));return}cerrar("mC");cargarCitas()});
@@ -565,7 +576,7 @@ $("cDel").onclick=function(){
 };
 $("modAg").onclick=function(){
   show("vAg");GD=new Date();GT=(ME&&ME.rol==="terapeuta")?ME.id:"all";
-  cargarPac(function(){sb.from("perfiles").select("id,nombre").eq("activo",true).in("rol",["admin","terapeuta"]).order("nombre").then(function(r){TEAM=r.error?[]:r.data;chipsT();cargarCitas()})});
+  cargarPac(function(){sb.from("perfiles").select("id,nombre").eq("activo",true).in("rol",["admin","terapeuta"]).order("nombre").then(function(r){TEAM=r.error?[]:r.data;cargarSedes(function(){chipsT();chipsS();cargarCitas()})})});
 };
 $("gBack").onclick=function(){route()};
 $("gPrev").onclick=function(){GD=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()-1);cargarCitas()};
@@ -774,7 +785,7 @@ $("yBack").onclick=function(){route()};
 $("modPay").onclick=function(){
   show("vPay");yTab(1);clear("mY");$("yQ").value="";
   $("yAdm").style.display=(ME&&ME.rol==="admin")?"":"none";
-  cargarPac(function(){llenarYP(null);cargarCat(function(){llenarPk();saldoY()})});
+  cargarSedes(function(){fillSede("ySede");cargarPac(function(){llenarYP(null);cargarCat(function(){llenarPk();saldoY()})})});
 };
 function llenarYP(sel){
   var q=$("yQ").value.trim().toLowerCase(),s2=$("yP");s2.innerHTML="";
@@ -804,7 +815,7 @@ $("yVend").onclick=function(){
   if(!pid){say("mY","err","Elige un paciente.");return}
   if(!pk){say("mY","err","No hay paquetes en el catálogo. Pide al administrador que cree uno.");return}
   $("yVend").disabled=true;
-  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_monto:+$("yPm").value||0,p_metodo:$("yPme").value}).then(function(r){
+  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_monto:+$("yPm").value||0,p_metodo:$("yPme").value,p_sede:$("ySede").value||null}).then(function(r){
     $("yVend").disabled=false;
     if(r.error){say("mY","err",errp(r.error));return}
     say("mY","ok","Paquete vendido.");saldoY();
@@ -815,7 +826,7 @@ $("yCobro").onclick=function(){
   if(!pid){say("mY","err","Elige un paciente.");return}
   if(!(m>0)){say("mY","err","Escribe un monto mayor a 0.");return}
   $("yCobro").disabled=true;
-  sb.from("pagos").insert({paciente_id:pid,monto:m,metodo:$("ySme").value,concepto:$("ySc").value.trim()||null}).then(function(r){
+  sb.from("pagos").insert({paciente_id:pid,monto:m,metodo:$("ySme").value,sede_id:$("ySede").value||null,concepto:$("ySc").value.trim()||null}).then(function(r){
     $("yCobro").disabled=false;
     if(r.error){say("mY","err",errp(r.error));return}
     $("ySm").value="";$("ySc").value="";say("mY","ok","Cobro registrado.");
@@ -823,16 +834,17 @@ $("yCobro").onclick=function(){
 };
 function cargarHist(){
   var ini=new Date();ini=new Date(ini.getFullYear(),ini.getMonth(),1);
-  sb.from("pagos").select("id,monto,metodo,concepto,pagado_en,pacientes(nombre)").gte("pagado_en",ini.toISOString()).order("pagado_en",{ascending:false}).limit(2000).then(function(r){
+  sb.from("pagos").select("id,monto,metodo,concepto,pagado_en,pacientes(nombre),sedes(nombre)").gte("pagado_en",ini.toISOString()).order("pagado_en",{ascending:false}).limit(2000).then(function(r){
     if(r.error){say("mY","err",errp(r.error));return}
     var hoy=ymd(new Date()),th=0,tm=0,box=$("yHist");box.innerHTML="";
-    r.data.forEach(function(x){tm+=Number(x.monto);if(ymd(new Date(x.pagado_en))===hoy)th+=Number(x.monto)});
+    var ps={};r.data.forEach(function(x){tm+=Number(x.monto);if(ymd(new Date(x.pagado_en))===hoy)th+=Number(x.monto);var nn=(x.sedes&&x.sedes.nombre)||"Sin local";ps[nn]=(ps[nn]||0)+Number(x.monto)});
+    var sb2=$("ySedes");sb2.innerHTML="";Object.keys(ps).forEach(function(k){var d=el("div","sub","Este mes en "+k+": "+sol(ps[k]));d.style.margin="4px 2px";sb2.appendChild(d)});
     $("yHoy").textContent=sol(th);$("yMes").textContent=sol(tm);
     if(!r.data.length){box.appendChild(el("div","sub","Aún no hay cobros este mes."));return}
     r.data.slice(0,40).forEach(function(x){
       var c=el("div","card");c.style.marginBottom="8px";
       var t=el("div","top");t.appendChild(el("b",null,(x.pacientes&&x.pacientes.nombre)||"Paciente"));t.appendChild(el("b",null,sol(x.monto)));c.appendChild(t);
-      c.appendChild(el("div","sub",new Date(x.pagado_en).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+(MT[x.metodo]||x.metodo)+(x.concepto?" · "+x.concepto:"")));
+      c.appendChild(el("div","sub",new Date(x.pagado_en).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+(MT[x.metodo]||x.metodo)+(x.sedes?" · "+x.sedes.nombre:"")+(x.concepto?" · "+x.concepto:"")));
       box.appendChild(c);
     });
   });
@@ -877,6 +889,55 @@ $("rSv").onclick=function(){
 };
 $("rCopy").onclick=function(){var l=linkRes();if(!l){say("mR","err","Escribe primero el nombre del enlace.");return}try{navigator.clipboard.writeText(l).then(function(){say("mR","ok","Enlace copiado.")},function(){say("mR","err","No se pudo copiar. Cópialo a mano.")})}catch(e){say("mR","err","No se pudo copiar. Cópialo a mano.")}};
 $("rWa").onclick=function(){var l=linkRes();if(!l){say("mR","err","Escribe primero el nombre del enlace.");return}window.open("https://wa.me/?text="+encodeURIComponent("Reserva tu cita aquí: "+l),"_blank")};
+function nomS(id){for(var i=0;i<SEDES.length;i++){if(SEDES[i].id===id)return SEDES[i].nombre}return ""}
+function cargarSedes(cb,todas){
+  var q=sb.from("sedes").select("id,nombre,direccion,activo");if(!todas){q=q.eq("activo",true)}q=q.order("nombre");
+  q.then(function(r){
+    SEDES=r.error?[]:r.data;
+    try{var g=localStorage.getItem("gs");if(g&&SEDES.some(function(x){return x.id===g})){GS=g}else if(GS!=="all"&&!SEDES.some(function(x){return x.id===GS})){GS="all"}}catch(e){}
+    sb.from("centros").select("hora_inicio,hora_fin").limit(1).then(function(c){if(!c.error&&c.data[0]){HI=c.data[0].hora_inicio;HF=c.data[0].hora_fin}if(cb)cb()});
+  });
+}
+function chipsS(){
+  var b=$("gSed");b.innerHTML="";
+  if(SEDES.length<2){return}
+  [{id:"all",nombre:"Todos los locales"}].concat(SEDES).forEach(function(x){var c=el("button","chip"+(GS===x.id?" on":""),x.nombre);c.onclick=function(){GS=x.id;try{localStorage.setItem("gs",x.id)}catch(e){}chipsS();pintar()};b.appendChild(c)});
+}
+function fillSede(id){
+  var s2=$(id);s2.innerHTML="";SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});
+  if(GS!=="all"&&SEDES.some(function(x){return x.id===GS})){s2.value=GS}
+}
+function sedesUI(c,p){
+  if(!SEDES.length||!ME||ME.rol!=="admin")return;
+  var w=el("div","sub","Locales donde atiende (sin marcar = todos):");w.style.margin="0 0 6px";
+  var box=el("div");box.style.cssText="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px";
+  var arr=p.sedes||[];
+  SEDES.forEach(function(x){
+    var l=document.createElement("label");l.style.cssText="display:flex;gap:6px;align-items:center;margin:0;color:var(--tx);font-size:14px";
+    var k=document.createElement("input");k.type="checkbox";k.style.width="auto";k.checked=arr.indexOf(x.id)>=0;k.setAttribute("data-s",x.id);
+    k.onchange=function(){var ids=[];box.querySelectorAll("input").forEach(function(i){if(i.checked)ids.push(i.getAttribute("data-s"))});
+      sb.rpc("cambiar_sedes",{p_id:p.id,p_sedes:ids}).then(function(r){if(r.error){say("mTeam","err",errp(r.error))}else{say("mTeam","ok","Locales actualizados.")}})};
+    l.appendChild(k);l.appendChild(document.createTextNode(x.nombre));box.appendChild(l);
+  });
+  c.appendChild(w);c.appendChild(box);
+}
+function loadLocales(){
+  var b=$("lList");b.innerHTML="";
+  SEDES.forEach(function(x){
+    var d=el("div","top");d.style.margin="6px 0";
+    var t=el("div");t.appendChild(el("b",null,x.nombre+(x.activo?"":" (inactivo)")));if(x.direccion){var ad=el("div","sub",x.direccion);ad.style.margin="0";t.appendChild(ad)}
+    d.appendChild(t);
+    var bt=el("button","out",x.activo?"Desactivar":"Activar");bt.onclick=function(){sb.from("sedes").update({activo:!x.activo}).eq("id",x.id).then(function(r){if(r.error){say("mL","err",errp(r.error))}else{cargarSedes(loadLocales,true)}})};
+    d.appendChild(bt);b.appendChild(d);
+  });
+}
+$("lAdd").onclick=function(){
+  var n=$("lNom").value.trim();if(!n){say("mL","err","Escribe el nombre del local.");return}
+  sb.from("sedes").insert({nombre:n,direccion:$("lDir").value.trim()||null}).then(function(r){
+    if(r.error){say("mL","err",errp(r.error));return}
+    $("lNom").value="";$("lDir").value="";say("mL","ok","Local agregado.");cargarSedes(function(){loadLocales();loadTeam()},true);
+  });
+};
 setMode("in");
 </script>
 </body>

@@ -271,6 +271,16 @@ input[type=range]{padding:0}
       <div class="row"><button class="out" id="tCopy">Copiar código</button><button class="out" id="tNew">Cambiar código</button></div>
       <div class="msg" id="mTeam"></div>
     </div>
+    <div class="card" style="margin-top:10px"><b>Reserva online</b>
+      <div class="sub" style="margin:2px 0 0">Tus pacientes agendan solos desde un enlace.</div>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="rOn" style="width:auto"> Activar reserva online</label>
+      <label>Nombre del enlace</label><input id="rSlug" placeholder="ej. centro-vida-sana" autocapitalize="none" autocomplete="off">
+      <div class="g2"><div><label>Desde (hora)</label><select id="rIni"></select></div><div><label>Hasta (hora)</label><select id="rFin"></select></div></div>
+      <label>Duración de cada cita</label><select id="rDur"><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
+      <div class="sub" id="rLink" style="word-break:break-all;margin:10px 0 0"></div>
+      <div class="row"><button class="out" id="rCopy">Copiar enlace</button><button class="out" id="rWa">Compartir</button></div>
+      <button class="btn" id="rSv">Guardar reserva online</button>
+      <div class="msg" id="mR"></div></div>
     <div id="tList"></div>
   </div>
 
@@ -438,7 +448,7 @@ function loadTeam(){
     });
   });
 }
-$("modTeam").onclick=function(){show("vTeam");clear("mTeam");loadTeam()};
+$("modTeam").onclick=function(){show("vTeam");clear("mTeam");clear("mR");loadTeam();loadReserva()};
 $("tBack").onclick=function(){route()};
 $("tWa").onclick=function(){
   var code=$("tCode").textContent,url=location.origin+location.pathname;
@@ -501,7 +511,7 @@ function chipsT(){
 function cargarCitas(){
   var d0=new Date(GD.getFullYear(),GD.getMonth(),GD.getDate()),d1=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+1);
   $("gDate").value=ymd(GD);
-  sb.from("citas").select("id,paciente_id,terapeuta_id,inicio,fin,estado,pacientes(nombre)").gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
+  sb.from("citas").select("id,paciente_id,terapeuta_id,inicio,fin,estado,origen,pacientes(nombre)").gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
     if(r.error){say("mAg","err",errp(r.error));return}
     clear("mAg");CITAS=r.data;pintar();
   });
@@ -512,7 +522,7 @@ function pintar(){
     var row=el("div","slot");row.appendChild(el("div","hr",pad(h)+":00"));var col=el("div","sl");
     CITAS.filter(function(c){return new Date(c.inicio).getHours()===h&&(GT==="all"||c.terapeuta_id===GT)}).forEach(function(c){
       var a=el("button","ap s-"+c.estado);a.appendChild(el("b",null,(c.pacientes&&c.pacientes.nombre)||"Paciente"));
-      a.appendChild(el("small",null,nomT(c.terapeuta_id)+" · "+hm(new Date(c.inicio))+"–"+hm(new Date(c.fin))+" · "+ES[c.estado]));
+      a.appendChild(el("small",null,nomT(c.terapeuta_id)+" · "+hm(new Date(c.inicio))+"–"+hm(new Date(c.fin))+" · "+ES[c.estado]+(c.origen==="online"?" · Reserva online":"")));
       a.onclick=function(){abrirCita(c)};col.appendChild(a);
     });
     var ad=el("button","add","+ Agendar");ad.onclick=(function(hh){return function(){abrirCita(null,hh)}})(h);col.appendChild(ad);
@@ -846,6 +856,27 @@ $("cAdd").onclick=function(){
     $("cNom").value="";$("cSes").value="";$("cPre").value="";say("mY","ok","Paquete agregado.");cargarCat(function(){pintarCat();llenarPk()});
   });
 };
+function linkRes(){var sl=$("rSlug").value.trim().toLowerCase();return sl?location.href.replace(/[?#].*$/,"").replace(/[^\/]*$/,"")+"reservar.html?c="+sl:""}
+function pintaLink(){var l=linkRes();$("rLink").textContent=($("rOn").checked&&l)?"Enlace para tus pacientes: "+l:"Activa la reserva y guarda para obtener el enlace."}
+function loadReserva(){
+  var a=$("rIni"),b=$("rFin");
+  if(!a.children.length){for(var h=0;h<=23;h++){a.appendChild(opt(h,pad(h)+":00"))}for(var f=1;f<=24;f++){b.appendChild(opt(f,pad(f)+":00"))}}
+  sb.from("centros").select("slug,reserva_activa,hora_inicio,hora_fin,duracion_min").limit(1).then(function(r){
+    if(r.error||!r.data[0]){say("mR","err",r.error?errp(r.error):"No se pudo cargar la configuración.");return}
+    var c=r.data[0];$("rOn").checked=!!c.reserva_activa;$("rSlug").value=c.slug||"";a.value=c.hora_inicio;b.value=c.hora_fin;$("rDur").value=String(c.duracion_min);pintaLink();
+  });
+}
+$("rSlug").oninput=pintaLink;$("rOn").onchange=pintaLink;
+$("rSv").onclick=function(){
+  $("rSv").disabled=true;
+  sb.rpc("configurar_reserva",{p_slug:$("rSlug").value,p_activa:$("rOn").checked,p_inicio:+$("rIni").value,p_fin:+$("rFin").value,p_dur:+$("rDur").value}).then(function(r){
+    $("rSv").disabled=false;
+    if(r.error){say("mR","err",errp(r.error));return}
+    say("mR","ok","Configuración guardada.");pintaLink();
+  });
+};
+$("rCopy").onclick=function(){var l=linkRes();if(!l){say("mR","err","Escribe primero el nombre del enlace.");return}try{navigator.clipboard.writeText(l).then(function(){say("mR","ok","Enlace copiado.")},function(){say("mR","err","No se pudo copiar. Cópialo a mano.")})}catch(e){say("mR","err","No se pudo copiar. Cópialo a mano.")}};
+$("rWa").onclick=function(){var l=linkRes();if(!l){say("mR","err","Escribe primero el nombre del enlace.");return}window.open("https://wa.me/?text="+encodeURIComponent("Reserva tu cita aquí: "+l),"_blank")};
 setMode("in");
 </script>
 </body>

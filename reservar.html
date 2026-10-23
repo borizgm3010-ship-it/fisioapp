@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reserva tu cita</title>
+<style>
+:root{--bg:#f4f7f6;--card:#fff;--tx:#12211f;--mut:#5d6f6b;--bd:#d9e3e0;--pri:#0f6b61;--priL:#dff1ee;--err:#fde8e8;--errT:#9b1c1c;--ok:#d7f2e0;--okT:#14532d}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1514;--card:#142220;--tx:#e8f2f0;--mut:#93aaa5;--bd:#27403c;--pri:#4cc2b2;--priL:#173a35;--err:#3d1616;--errT:#f5b5b5;--ok:#12382a;--okT:#8fe0b0}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.wrap{max-width:460px;margin:0 auto;padding:20px 16px 40px}
+h1{margin:6px 0 2px;font-size:22px;color:var(--pri)}
+.sub{color:var(--mut);font-size:14px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:15px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px}
+.chips,.slots{display:flex;flex-wrap:wrap;gap:8px}
+.chip,.slot{border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:999px;padding:9px 14px;font-size:15px;cursor:pointer}
+.chip.on,.slot.on{background:var(--pri);color:var(--bg);border-color:var(--pri);font-weight:600}
+.btn{width:100%;padding:14px;border-radius:12px;border:0;background:var(--pri);color:var(--bg);font-size:16px;font-weight:600;cursor:pointer;margin-top:14px}
+.btn:disabled{opacity:.6}
+.msg{padding:10px 12px;border-radius:10px;font-size:14px;margin-top:12px;display:none}
+.msg.err{background:var(--err);color:var(--errT);display:block}
+.hide{display:none}
+.hp{position:absolute;left:-9999px;opacity:0;height:0;width:0}
+.fine{font-size:12px;color:var(--mut);margin-top:10px}
+.ok{background:var(--ok);color:var(--okT);border-radius:16px;padding:20px;text-align:center}
+.ok b{display:block;font-size:18px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="vLoad" class="sub">Cargando...</div>
+  <div id="vOff" class="card hide"><h2>Reserva no disponible</h2><div class="sub" style="margin:0">Este enlace no está activo. Comunícate directamente con el centro.</div></div>
+
+  <div id="vMain" class="hide">
+    <h1 id="cName"></h1>
+    <div class="sub">Reserva tu cita en pocos pasos.</div>
+    <div class="card"><h2>1. Elige al terapeuta</h2><div class="chips" id="tChips"></div></div>
+    <div class="card"><h2>2. Elige el día</h2><input type="date" id="fecha"></div>
+    <div class="card"><h2>3. Elige la hora</h2><div class="slots" id="slots"><span class="sub" style="margin:0">Elige un terapeuta y un día.</span></div></div>
+    <div class="card" id="fCard"><h2>4. Tus datos</h2>
+      <label for="nom">Nombre completo</label><input id="nom" autocomplete="name">
+      <label for="tel">Teléfono (WhatsApp)</label><input id="tel" type="tel" inputmode="tel" autocomplete="tel">
+      <label for="eml">Correo (opcional)</label><input id="eml" type="email" autocomplete="email">
+      <input class="hp" id="web" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="msg" id="msg"></div>
+      <button class="btn" id="go">Reservar cita</button>
+      <div class="fine">Al reservar aceptas que el centro use tus datos solo para gestionar tu cita. El centro confirmará tu reserva.</div>
+    </div>
+  </div>
+
+  <div id="vDone" class="hide"><div class="ok"><b>¡Reserva enviada!</b><span id="dTxt"></span></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+var SUPABASE_URL="https://xzqromdcaeclsdiajcdz.supabase.co";
+var SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6cXJvbWRjYWVjbHNkaWFqY2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTY5MDYsImV4cCI6MjEwNzk5MjkwNn0.6csjnGseODDO_4_EhWGDD8l7LLWDo-AZoW9MofHaSnk";
+var $=function(i){return document.getElementById(i)};
+function pad(n){return(n<10?"0":"")+n}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function vista(id){["vLoad","vOff","vMain","vDone"].forEach(function(v){$(v).className=v===id?"":"hide"})}
+if(typeof supabase==="undefined"){
+  $("vLoad").textContent="No se pudo cargar la página. Revisa tu conexión a internet e inténtalo de nuevo.";
+  throw new Error("Supabase no cargó");
+}
+var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+var SLUG=(new URLSearchParams(location.search).get("c")||"").toLowerCase();
+var T=null,SL=null,TH=[];
+function err(t){var m=$("msg");m.className="msg err";m.textContent=t}
+function limpiar(){$("msg").className="msg";$("msg").textContent=""}
+
+sb.rpc("reserva_info",{p_slug:SLUG}).then(function(r){
+  if(r.error||!r.data){vista("vOff");return}
+  $("cName").textContent=r.data.centro;document.title="Reserva tu cita · "+r.data.centro;
+  TH=r.data.terapeutas||[];
+  if(!TH.length){vista("vOff");return}
+  var b=$("tChips");
+  TH.forEach(function(t){var c=document.createElement("button");c.className="chip";c.textContent=t.nombre;c.onclick=function(){T=t.id;SL=null;Array.prototype.forEach.call(b.children,function(x){x.className="chip"});c.className="chip on";horarios()};b.appendChild(c)});
+  if(TH.length===1){b.firstChild.click()}
+  var hoy=new Date(),max=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+60);
+  $("fecha").min=ymd(hoy);$("fecha").max=ymd(max);$("fecha").value=ymd(hoy);
+  vista("vMain");
+}).catch(function(){vista("vOff")});
+
+$("fecha").onchange=function(){SL=null;horarios()};
+function horarios(){
+  var box=$("slots");SL=null;
+  if(!T||!$("fecha").value){box.textContent="Elige un terapeuta y un día.";return}
+  box.textContent="Buscando horarios...";
+  sb.rpc("reserva_horarios",{p_slug:SLUG,p_terapeuta:T,p_fecha:$("fecha").value}).then(function(r){
+    box.innerHTML="";
+    if(r.error){box.textContent="No se pudieron cargar los horarios.";return}
+    if(!r.data.length){box.textContent="No hay horarios libres ese día. Prueba con otra fecha.";return}
+    r.data.forEach(function(h){var b=document.createElement("button");b.className="slot";b.textContent=h.hora;b.onclick=function(){SL=h.inicio;Array.prototype.forEach.call(box.children,function(x){x.className="slot"});b.className="slot on"};box.appendChild(b)});
+  });
+}
+$("go").onclick=function(){
+  limpiar();
+  if($("web").value){return}
+  if(!T){err("Elige un terapeuta.");return}
+  if(!SL){err("Elige una hora.");return}
+  if($("nom").value.trim().length<3){err("Escribe tu nombre completo.");return}
+  if($("tel").value.replace(/[^0-9]/g,"").length<7){err("Escribe un teléfono válido.");return}
+  $("go").disabled=true;
+  sb.rpc("reservar",{p_slug:SLUG,p_terapeuta:T,p_inicio:SL,p_nombre:$("nom").value,p_telefono:$("tel").value,p_email:$("eml").value}).then(function(r){
+    $("go").disabled=false;
+    if(r.error){err(r.error.message||"No se pudo reservar. Inténtalo de nuevo.");horarios();return}
+    $("dTxt").textContent="Tu cita quedó pedida para el "+r.data.fecha+" a las "+r.data.hora+". El centro la confirmará pronto.";
+    vista("vDone");
+  });
+};
+</script>
+</body>
+</html>

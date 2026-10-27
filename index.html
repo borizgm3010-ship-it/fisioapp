@@ -102,6 +102,7 @@ input[type=range]{padding:0}
     <label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password">
     <button class="btn" id="go">Ingresar</button>
     <button class="link" id="forgot">Olvidé mi contraseña</button>
+    <button class="out hide" id="gg" style="width:100%;margin-top:10px">Continuar con Google</button>
     <div class="msg" id="mAuth"></div>
   </div>
 
@@ -164,8 +165,18 @@ input[type=range]{padding:0}
     <div class="row" style="margin:0"><button class="out" id="gPrev" style="flex:1">‹</button><input id="gDate" type="date" style="flex:4"><button class="out" id="gNext" style="flex:1">›</button></div>
     <div class="chips" id="gSed"></div>
     <div class="chips" id="gThr"></div>
+    <button class="link" id="gCal" style="padding-top:0">Sincronizar con mi calendario (Google / iPhone)</button>
     <div class="msg" id="mAg"></div>
     <div id="gList"></div>
+    <div class="modal" id="mCal"><div class="sheet">
+      <h2>Mi calendario</h2>
+      <div class="sub" style="margin:0">Tus citas aparecen solas en tu calendario del celular. Este enlace es privado: no lo compartas.</div>
+      <label>Enlace</label><input id="calUrl" readonly>
+      <div class="row"><button class="out" id="calCopy">Copiar enlace</button><a class="out" id="calIos" style="text-align:center;text-decoration:none">Agregar en iPhone</a></div>
+      <div class="sub" style="margin:10px 0 0">En Google Calendar (desde una computadora): Otros calendarios → Desde URL → pega el enlace. Se actualiza solo cada varias horas.</div>
+      <div class="row"><button class="out" id="calNew" style="color:#c0392b">Cambiar enlace</button><button class="out" id="calX">Cerrar</button></div>
+      <div class="msg" id="mCalm"></div>
+    </div></div>
     <div class="modal" id="mC"><div class="sheet">
       <h2 id="mCt">Nueva cita</h2>
       <label for="cQ">Paciente</label><input id="cQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="cP"></select>
@@ -264,6 +275,23 @@ input[type=range]{padding:0}
     </section>
   </div>
 
+  <!-- Recordatorios -->
+  <div class="hide" id="vRec">
+    <div class="top"><h1>Recordatorios</h1><button class="out" id="rcBack">Volver</button></div>
+    <div class="sub">Elige el día y manda el recordatorio por WhatsApp con un toque.</div>
+    <div class="row" style="margin:0 0 10px"><button class="out" id="rcPrev">‹</button><input id="rcDate" type="date" style="flex:4"><button class="out" id="rcNext">›</button></div>
+    <div class="msg" id="mRc"></div>
+    <div id="rcList"></div>
+  </div>
+
+  <!-- Reportes -->
+  <div class="hide" id="vRep">
+    <div class="top"><h1>Reportes</h1><button class="out" id="rpBack">Volver</button></div>
+    <div class="g2"><div><label style="margin-top:0">Mes</label><input id="rpMes" type="month"></div><div><label style="margin-top:0">Local</label><select id="rpSede"></select></div></div>
+    <div class="msg" id="mRp"></div>
+    <div id="rpBox" style="margin-top:12px"></div>
+  </div>
+
   <!-- Equipo (solo administrador) -->
   <div class="hide" id="vTeam">
     <div class="top"><h1>Equipo</h1><button class="out" id="tBack">Volver</button></div>
@@ -301,6 +329,8 @@ input[type=range]{padding:0}
       <div class="mod" id="modPac" style="cursor:pointer"><b>Pacientes</b><span>Fichas y búsqueda</span></div>
       <div class="mod" id="modHC" style="cursor:pointer"><b>Historia clínica</b><span>Elige un paciente</span></div>
       <div class="mod" id="modPay" style="cursor:pointer"><b>Pagos y paquetes</b><span>Cobros y sesiones</span></div>
+      <div class="mod" id="modRec" style="cursor:pointer"><b>Recordatorios</b><span>WhatsApp de citas</span></div>
+      <div class="mod hide" id="modRep" style="cursor:pointer"><b>Reportes</b><span>Ingresos y citas</span></div>
       <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
     </div>
   </div>
@@ -320,7 +350,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC","vPay"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC","vPay","vRec","vRep"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -385,13 +415,13 @@ $("mk").onclick=function(){
   });
 };
 
-function salir(){sb.auth.signOut().then(function(){route()})}
+function salir(){limpiarBor();sb.auth.signOut().then(function(){route()})}
 $("out").onclick=salir;$("out2").onclick=salir;$("out3").onclick=salir;
 
 var ROLES={admin:"Administrador",terapeuta:"Terapeuta",recepcion:"Recepción"};
 function route(){
   sb.auth.getSession().then(function(s){
-    var ses=s.data&&s.data.session;
+    var ses=s.data&&s.data.session;CURU=ses?ses.user.id:null;
     if(recovery&&ses){show("vReset");return}
     if(!ses){show("vAuth");return}
     sb.from("perfiles").select("nombre,rol,activo,centro_id,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
@@ -399,17 +429,20 @@ function route(){
       if(!r.data){show("vOnb");return}
       if(!r.data.activo){show("vOff");return}
       ME={id:ses.user.id,rol:r.data.rol,cid:r.data.centro_id};
-      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";
+      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";$("modRep").className=r.data.rol==="admin"?"mod":"mod hide";
       $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
       $("dU").textContent=r.data.nombre;
       $("dR").textContent=ROLES[r.data.rol]||r.data.rol;
       show("vDash");
+      restaurarVista(r.data.rol);
     });
   });
 }
 
-sb.auth.onAuthStateChange(function(ev){
+sb.auth.onAuthStateChange(function(ev,session){
   if(ev==="PASSWORD_RECOVERY"){recovery=true}
+  if(ev==="SIGNED_OUT"){CURU=null}
+  if(ev==="SIGNED_IN"&&session&&CURU&&CURU===session.user.id){return}
   if(ev==="SIGNED_IN"||ev==="SIGNED_OUT"||ev==="PASSWORD_RECOVERY"||ev==="INITIAL_SESSION"){setTimeout(route,0)}
 });
 var ME=null;
@@ -587,18 +620,19 @@ var HP=null,HE=null,NT=[],NM={};
 var EF=[["e_motivo","motivo_consulta"],["e_antec","antecedentes"],["e_med","medicacion"],["e_zona","zona_dolor"],["e_postura","postura_marcha"],["e_rom","rango_movimiento"],["e_pruebas","pruebas_especiales"],["e_diag","diagnostico"],["e_obj","objetivos"],["e_frec","frecuencia"]];
 function aud(a,t,r){sb.from("auditoria_accesos").insert({accion:a,tabla:t,registro_id:r||null,paciente_id:HP.id}).then(function(){})}
 function fch(d){return new Date(d).toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}
-function hTab(n){for(var i=1;i<=4;i++){$("hV"+i).className=i===n?"":"hide";$("hT"+i).className="tab"+(i===n?" on":"")}}
+function hTab(n){for(var i=1;i<=4;i++){$("hV"+i).className=i===n?"":"hide";$("hT"+i).className="tab"+(i===n?" on":"")}if(HP){try{localStorage.setItem("bor_vista",JSON.stringify({pid:HP.id,tab:n,t:Date.now()}))}catch(e){}}}
 $("hT1").onclick=function(){hTab(1)};$("hT2").onclick=function(){hTab(2)};$("hT3").onclick=function(){hTab(3);pintarMapa()};$("hT4").onclick=function(){hTab(4)};
 $("e_eva").oninput=function(){$("e_evav").textContent=this.value};
 $("n_eva").oninput=function(){$("n_evav").textContent=this.value};
 function abrirHC(p){
   HP=p;HE=null;NT=[];$("hN").textContent=p.nombre;hTab(1);clear("mH");cerrar("mP");show("vHC");
   ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
+  restoreNota();
   sb.from("perfiles").select("id,nombre").then(function(r){NM={};if(!r.error){r.data.forEach(function(x){NM[x.id]=x.nombre})}cargarEval();cargarNotas();cargarMapa();cargarArch()});
   aud("ver","historia",null);
 }
 $("pHC").onclick=function(){if(EP)abrirHC(EP)};
-$("hBack").onclick=function(){show("vPac");listaPac()};
+$("hBack").onclick=function(){try{localStorage.removeItem("bor_vista")}catch(e){}show("vPac");listaPac()};
 function cargarEval(){
   sb.from("evaluaciones").select("*").eq("paciente_id",HP.id).order("creado_en",{ascending:false}).limit(1).then(function(r){
     if(r.error){say("mH","err",errp(r.error));return}
@@ -606,7 +640,7 @@ function cargarEval(){
     EF.forEach(function(f){$(f[0]).value=(HE&&HE[f[1]])||""});
     $("e_eva").value=(HE&&HE.eva_inicial!=null)?HE.eva_inicial:5;$("e_evav").textContent=$("e_eva").value;
     $("e_fz").value=(HE&&HE.fuerza!=null)?HE.fuerza:4;$("e_nses").value=(HE&&HE.sesiones_planificadas)||"";$("e_cons").checked=!!(HE&&HE.consentimiento);
-    chartHC();
+    restoreEval();chartHC();
   });
 }
 $("eSv").onclick=function(){
@@ -615,7 +649,7 @@ $("eSv").onclick=function(){
   o.eva_inicial=+$("e_eva").value;o.fuerza=+$("e_fz").value;o.sesiones_planificadas=+$("e_nses").value||null;o.consentimiento=$("e_cons").checked;
   if(o.consentimiento&&!(HE&&HE.consentimiento)){o.consentimiento_en=new Date().toISOString()}
   var q=HE?sb.from("evaluaciones").update(o).eq("id",HE.id):sb.from("evaluaciones").insert(o);
-  q.then(function(r){if(r.error){say("mH","err",errp(r.error));return}say("mH","ok","Evaluación guardada.");aud(HE?"editar":"crear","evaluaciones",HE&&HE.id);cargarEval()});
+  q.then(function(r){if(r.error){say("mH","err",errp(r.error));return}ddel("bor_eval_"+HP.id);say("mH","ok","Evaluación guardada.");aud(HE?"editar":"crear","evaluaciones",HE&&HE.id);cargarEval()});
 };
 function cargarNotas(){
   sb.from("notas_clinicas").select("*,correcciones_nota(id,texto,creado_en,autor_id)").eq("paciente_id",HP.id).order("creado_en").then(function(r){
@@ -659,7 +693,7 @@ $("nAdd").onclick=function(){
   sb.from("notas_clinicas").insert(o).select("id").then(function(r){
     if(r.error){say("mH","err",errp(r.error));return}
     ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
-    say("mH","ok","Borrador guardado. Fírmalo cuando termines.");aud("crear","notas_clinicas",r.data&&r.data[0]&&r.data[0].id);cargarNotas();
+    ddel("bor_nota_"+HP.id);say("mH","ok","Borrador guardado. Fírmalo cuando termines.");aud("crear","notas_clinicas",r.data&&r.data[0]&&r.data[0].id);cargarNotas();
   });
 };
 var BV="front",BM="o",BZ={},HM=null,AR=[];
@@ -692,7 +726,7 @@ function pintarMapa(){
   var h="";
   BR.forEach(function(r){var k=BV+":"+r[0];h+="<"+r[5]+' class="rg '+(BZ[k]||"")+'" data-k="'+k+'" '+r[6]+"><title>"+bn(r)+"</title></"+r[5]+">"});
   $("bsvg").innerHTML=h;
-  $("bsvg").querySelectorAll(".rg").forEach(function(e){e.onclick=function(){var k=e.getAttribute("data-k");if(BZ[k]===BM){delete BZ[k]}else{BZ[k]=BM}pintarMapa()}});
+  $("bsvg").querySelectorAll(".rg").forEach(function(e){e.onclick=function(){var k=e.getAttribute("data-k");if(BZ[k]===BM){delete BZ[k]}else{BZ[k]=BM}dsaveMapa();pintarMapa()}});
   var o=[],i=[];
   ["front","back"].forEach(function(v){BR.forEach(function(r){var m=BZ[v+":"+r[0]];if(m==="o")o.push(bn(r,v));if(m==="i")i.push(bn(r,v))})});
   $("bsum").innerHTML='<div class="lg"><span><i class="dot" style="background:#e5484d"></i>Origen</span><span><i class="dot" style="background:#f5a524"></i>Se expande</span></div><p class="pre"><b>Origen:</b> '+(o.length?o.join(", "):"sin marcar")+'</p><p class="pre"><b>Se expande a:</b> '+(i.length?i.join(", "):"sin marcar")+"</p>";
@@ -706,7 +740,7 @@ function cargarMapa(){
   sb.from("mapas_dolor").select("id,descripcion,mapa_dolor_zonas(vista,zona,tipo)").eq("paciente_id",HP.id).order("creado_en",{ascending:false}).limit(1).then(function(r){
     if(r.error){say("mH","err",errp(r.error));return}
     if(r.data[0]){HM=r.data[0].id;$("bnote").value=r.data[0].descripcion||"";(r.data[0].mapa_dolor_zonas||[]).forEach(function(z){BZ[z.vista+":"+z.zona]=z.tipo==="origen"?"o":"i"})}
-    pintarMapa();
+    restoreMapa();pintarMapa();
   });
 }
 $("bsave").onclick=function(){
@@ -715,8 +749,8 @@ $("bsave").onclick=function(){
     sb.from("mapa_dolor_zonas").delete().eq("mapa_id",id).then(function(d){
       if(d.error){say("mH","err",errp(d.error));return}
       var L=Object.keys(BZ).map(function(k){var q=k.split(":");return{mapa_id:id,vista:q[0],zona:q[1],tipo:BZ[k]==="o"?"origen":"expansion"}});
-      if(!L.length){say("mH","ok","Mapa guardado.");return}
-      sb.from("mapa_dolor_zonas").insert(L).then(function(x){if(x.error){say("mH","err",errp(x.error))}else{say("mH","ok","Mapa guardado.");aud("editar","mapas_dolor",id)}});
+      if(!L.length){ddel("bor_mapa_"+HP.id);say("mH","ok","Mapa guardado.");return}
+      sb.from("mapa_dolor_zonas").insert(L).then(function(x){if(x.error){say("mH","err",errp(x.error))}else{ddel("bor_mapa_"+HP.id);say("mH","ok","Mapa guardado.");aud("editar","mapas_dolor",id)}});
     });
   }
   if(HM){sb.from("mapas_dolor").update({descripcion:nota}).eq("id",HM).then(function(u){if(u.error){say("mH","err",errp(u.error))}else{zonas(HM)}})}
@@ -938,6 +972,144 @@ $("lAdd").onclick=function(){
     $("lNom").value="";$("lDir").value="";say("mL","ok","Local agregado.");cargarSedes(function(){loadLocales();loadTeam()},true);
   });
 };
+/* Google (se activa cuando se configura en Supabase) */
+var GOOGLE_LOGIN=false;
+if(GOOGLE_LOGIN){$("gg").className="out"}
+$("gg").onclick=function(){sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+location.pathname}}).then(function(r){if(r.error){say("mAuth","err",traducir(r.error))}})};
+
+/* Calendario personal */
+function calLink(t){return SUPABASE_URL+"/functions/v1/calendario?t="+t}
+function abrirCal(){
+  clear("mCalm");$("calUrl").value="Cargando...";$("mCal").className="modal show";
+  sb.rpc("mi_token_calendario").then(function(r){
+    if(r.error||!r.data){say("mCalm","err",r.error?errp(r.error):"No se pudo obtener el enlace.");return}
+    var u=calLink(r.data);$("calUrl").value=u;$("calIos").href=u.replace(/^https:/,"webcal:");
+  });
+}
+$("gCal").onclick=abrirCal;
+$("calX").onclick=function(){cerrar("mCal")};
+$("calCopy").onclick=function(){try{navigator.clipboard.writeText($("calUrl").value).then(function(){say("mCalm","ok","Enlace copiado.")},function(){say("mCalm","err","No se pudo copiar. Mantén presionado el enlace para copiarlo.")})}catch(e){say("mCalm","err","No se pudo copiar.")}};
+$("calNew").onclick=function(){
+  if(!confirm("Al cambiar el enlace, el anterior deja de funcionar y tendrás que agregar el nuevo a tu calendario. ¿Continuar?"))return;
+  sb.rpc("regenerar_token_calendario").then(function(r){if(r.error){say("mCalm","err",errp(r.error));return}var u=calLink(r.data);$("calUrl").value=u;$("calIos").href=u.replace(/^https:/,"webcal:");say("mCalm","ok","Enlace nuevo generado.")});
+};
+
+/* Recordatorios por WhatsApp */
+var RD=new Date();
+function waNum(t){var d=(t||"").replace(/\D/g,"");if(d.length===9)d="51"+d;return d}
+function cargarRec(){
+  $("rcDate").value=ymd(RD);
+  var d0=new Date(RD.getFullYear(),RD.getMonth(),RD.getDate()),d1=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()+1);
+  sb.from("citas").select("id,inicio,estado,sede_id,pacientes(nombre,telefono),perfiles(nombre)").in("estado",["pendiente","confirmada"]).gte("inicio",d0.toISOString()).lt("inicio",d1.toISOString()).order("inicio").then(function(r){
+    var box=$("rcList");box.innerHTML="";
+    if(r.error){say("mRc","err",errp(r.error));return}
+    clear("mRc");
+    if(!r.data.length){box.appendChild(el("div","sub","No hay citas pendientes o confirmadas ese día."));return}
+    r.data.forEach(function(c){
+      var pac=c.pacientes||{},ini=new Date(c.inicio),ter=(c.perfiles&&c.perfiles.nombre)||"";
+      var sd=SEDES.filter(function(x){return x.id===c.sede_id})[0];
+      var card=el("div","card");card.style.marginBottom="8px";
+      var t=el("div","top");t.appendChild(el("b",null,pac.nombre||"Paciente"));t.appendChild(el("b",null,hm(ini)));card.appendChild(t);
+      card.appendChild(el("div","sub",(sd?sd.nombre+" · ":"")+ter+" · "+ES[c.estado]));
+      var key="rec_"+c.id,hecho=false;try{hecho=!!localStorage.getItem(key)}catch(e){}
+      var b=el("button","btn",!waNum(pac.telefono)?"Sin teléfono":(hecho?"Enviado ✓ (volver a enviar)":"Enviar por WhatsApp"));
+      b.style.marginTop="10px";
+      if(!waNum(pac.telefono)){b.disabled=true}
+      b.onclick=function(){
+        var msg="Hola "+(pac.nombre||"")+", te recordamos tu cita en "+$("dC").textContent+(sd?" ("+sd.nombre+(sd.direccion?", "+sd.direccion:"")+")":"")+" el "+ini.toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"})+" a las "+hm(ini)+(ter?" con "+ter:"")+". Responde SÍ para confirmar o avísanos si necesitas reprogramar. ¡Te esperamos!";
+        window.open("https://wa.me/"+waNum(pac.telefono)+"?text="+encodeURIComponent(msg),"_blank");
+        try{localStorage.setItem(key,"1")}catch(e){}
+        b.textContent="Enviado ✓ (volver a enviar)";
+      };
+      card.appendChild(b);box.appendChild(card);
+    });
+  });
+}
+$("modRec").onclick=function(){show("vRec");RD=new Date();RD=new Date(RD.getFullYear(),RD.getMonth(),RD.getDate()+1);cargarSedes(cargarRec)};
+$("rcBack").onclick=function(){route()};
+$("rcPrev").onclick=function(){RD=new Date(RD.getFullYear(),RD.getMonth(),RD.getDate()-1);cargarRec()};
+$("rcNext").onclick=function(){RD=new Date(RD.getFullYear(),RD.getMonth(),RD.getDate()+1);cargarRec()};
+$("rcDate").onchange=function(){var q=this.value.split("-");if(q.length===3){RD=new Date(+q[0],+q[1]-1,+q[2]);cargarRec()}};
+
+/* Reportes (administrador) */
+function fila(box,a,b,fuerte){var d=el("div","top");d.style.margin="5px 0";d.appendChild(el(fuerte?"b":"span",null,a));d.appendChild(el(fuerte?"b":"span",null,b));box.appendChild(d)}
+function tarjeta(box,tit){var c=el("div","card");c.style.marginBottom="10px";c.appendChild(el("b",null,tit));box.appendChild(c);return c}
+function cargarRep(){
+  var m=$("rpMes").value.split("-");if(m.length!==2)return;
+  var ini=new Date(+m[0],+m[1]-1,1),fin=new Date(+m[0],+m[1],1),sede=$("rpSede").value;
+  var qp=sb.from("pagos").select("monto,metodo,sede_id,sedes(nombre)").gte("pagado_en",ini.toISOString()).lt("pagado_en",fin.toISOString()).limit(5000);
+  var qc=sb.from("citas").select("estado,origen,terapeuta_id,sede_id,perfiles(nombre)").gte("inicio",ini.toISOString()).lt("inicio",fin.toISOString()).limit(5000);
+  var qn=sb.from("pacientes").select("id",{count:"exact",head:true}).gte("creado_en",ini.toISOString()).lt("creado_en",fin.toISOString());
+  if(sede){qp=qp.eq("sede_id",sede);qc=qc.eq("sede_id",sede)}
+  Promise.all([qp,qc,qn]).then(function(R){
+    var box=$("rpBox");box.innerHTML="";
+    if(R[0].error||R[1].error){say("mRp","err",errp(R[0].error||R[1].error));return}
+    clear("mRp");
+    var tot=0,pl={},pm={};
+    R[0].data.forEach(function(x){var v=Number(x.monto);tot+=v;var n=(x.sedes&&x.sedes.nombre)||"Sin local";pl[n]=(pl[n]||0)+v;pm[x.metodo]=(pm[x.metodo]||0)+v});
+    var c1=tarjeta(box,"Ingresos");fila(c1,"Total",sol(tot),true);
+    Object.keys(pl).forEach(function(k){fila(c1,k,sol(pl[k]))});
+    if(Object.keys(pm).length){c1.appendChild(el("div","sub","Por método de pago"));Object.keys(pm).forEach(function(k){fila(c1,MT[k]||k,sol(pm[k]))})}
+    var st={},ter={},on=0,n=R[1].data.length;
+    R[1].data.forEach(function(x){st[x.estado]=(st[x.estado]||0)+1;if(x.origen==="online")on++;if(x.estado==="atendida"){var t=(x.perfiles&&x.perfiles.nombre)||"—";ter[t]=(ter[t]||0)+1}});
+    var perd=(st.no_asistio||0),base=(st.atendida||0)+perd;
+    var c2=tarjeta(box,"Citas");fila(c2,"Total del mes",String(n),true);
+    ["pendiente","confirmada","atendida","cancelada","no_asistio"].forEach(function(k){if(st[k])fila(c2,ES[k],String(st[k]))});
+    if(base){fila(c2,"Inasistencia",Math.round(perd*100/base)+"%")}
+    fila(c2,"Reservas online",String(on));
+    var c3=tarjeta(box,"Sesiones atendidas por terapeuta");
+    if(!Object.keys(ter).length){c3.appendChild(el("div","sub","Aún no hay citas atendidas."))}
+    Object.keys(ter).sort(function(a,b){return ter[b]-ter[a]}).forEach(function(k){fila(c3,k,String(ter[k]))});
+    var c4=tarjeta(box,"Pacientes nuevos");fila(c4,"Registrados este mes",String(R[2].count||0),true);
+  });
+}
+$("modRep").onclick=function(){
+  show("vRep");var h=new Date();$("rpMes").value=h.getFullYear()+"-"+pad(h.getMonth()+1);clear("mRp");
+  cargarSedes(function(){var s2=$("rpSede");s2.innerHTML="";s2.appendChild(opt("","Todos los locales"));SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});cargarRep()},true);
+};
+$("rpBack").onclick=function(){route()};
+$("rpMes").onchange=cargarRep;$("rpSede").onchange=cargarRep;
+/* Borradores automáticos y recuperación de pantalla */
+var CURU=null,RESTAURADO=false;
+function dsave(k,o){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),d:o}))}catch(e){}}
+function dload(k){try{var x=JSON.parse(localStorage.getItem(k));if(x&&Date.now()-x.t<86400000){return x.d}if(x){localStorage.removeItem(k)}}catch(e){}return null}
+function ddel(k){try{localStorage.removeItem(k)}catch(e){}}
+function limpiarBor(){try{Object.keys(localStorage).forEach(function(k){if(k.indexOf("bor_")===0){localStorage.removeItem(k)}})}catch(e){}}
+function evalVals(){var o={};EF.forEach(function(f){o[f[0]]=$(f[0]).value});o.e_eva=$("e_eva").value;o.e_fz=$("e_fz").value;o.e_nses=$("e_nses").value;o.e_cons=$("e_cons").checked;return o}
+function restoreEval(){
+  if(!HP)return;var d=dload("bor_eval_"+HP.id);if(!d)return;
+  if(JSON.stringify(d)===JSON.stringify(evalVals())){return}
+  EF.forEach(function(f){if(d[f[0]]!=null)$(f[0]).value=d[f[0]]});
+  if(d.e_eva!=null){$("e_eva").value=d.e_eva;$("e_evav").textContent=d.e_eva}
+  if(d.e_fz!=null)$("e_fz").value=d.e_fz;if(d.e_nses!=null)$("e_nses").value=d.e_nses;$("e_cons").checked=!!d.e_cons;
+  say("mH","ok","Recuperé lo que estabas escribiendo en la evaluación. Toca Guardar evaluación para conservarlo.");
+}
+function restoreNota(){
+  if(!HP)return;var d=dload("bor_nota_"+HP.id);if(!d)return;
+  if(!(d.s||d.o||d.a||d.p))return;
+  $("n_s").value=d.s||"";$("n_o").value=d.o||"";$("n_a").value=d.a||"";$("n_p").value=d.p||"";
+  if(d.eva!=null){$("n_eva").value=d.eva;$("n_evav").textContent=d.eva}
+  say("mH","ok","Recuperé la nota que estabas escribiendo. Revísala y toca Guardar borrador.");
+}
+function dsaveMapa(){if(HP)dsave("bor_mapa_"+HP.id,{z:BZ,n:$("bnote").value})}
+function restoreMapa(){
+  if(!HP)return;var d=dload("bor_mapa_"+HP.id);if(!d)return;
+  BZ=d.z||{};$("bnote").value=d.n||"";
+  say("mH","ok","Recuperé el mapa corporal que estabas marcando. Toca Guardar mapa para conservarlo.");
+}
+$("hV1").addEventListener("input",function(){if(HP)dsave("bor_eval_"+HP.id,evalVals())});
+$("hV1").addEventListener("change",function(){if(HP)dsave("bor_eval_"+HP.id,evalVals())});
+$("hV2").addEventListener("input",function(e){if(HP&&e.target.id&&e.target.id.indexOf("n_")===0){dsave("bor_nota_"+HP.id,{s:$("n_s").value,o:$("n_o").value,a:$("n_a").value,p:$("n_p").value,eva:$("n_eva").value})}});
+$("bnote").addEventListener("input",dsaveMapa);
+function restaurarVista(rol){
+  if(RESTAURADO)return;RESTAURADO=true;
+  var v=null;try{v=JSON.parse(localStorage.getItem("bor_vista"))}catch(e){}
+  if(!v||!v.pid||Date.now()-v.t>43200000||rol==="recepcion")return;
+  sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento").eq("id",v.pid).maybeSingle().then(function(q){
+    if(q.error||!q.data)return;
+    EP=q.data;abrirHC(q.data);hTab(v.tab||1);if(v.tab===3)pintarMapa();
+  });
+}
 setMode("in");
 </script>
 </body>

@@ -927,6 +927,7 @@ function cargarHist(){
       var c=el("div","card");c.style.marginBottom="8px";
       var t=el("div","top");t.appendChild(el("b",null,(x.pacientes&&x.pacientes.nombre)||"Paciente"));t.appendChild(el("b",null,sol(x.monto)));c.appendChild(t);
       c.appendChild(el("div","sub",new Date(x.pagado_en).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" · "+(MT[x.metodo]||x.metodo)+(x.sedes?" · "+x.sedes.nombre:"")+(x.concepto?" · "+x.concepto:"")));
+      if(ME&&ME.rol==="admin"){var b=el("button","sm","🗑️ Eliminar");b.style.margin="6px 0 0";b.onclick=function(){if(!confirm("¿Eliminar este pago de "+sol(x.monto)+" de "+((x.pacientes&&x.pacientes.nombre)||"este paciente")+"? La deuda del paquete se recalcula."))return;b.disabled=true;sb.rpc("eliminar_pago",{p_id:x.id}).then(function(z){if(z.error){b.disabled=false;say("mY","err",errp(z.error))}else{say("mY","ok","Pago eliminado.");cargarHist()}})};c.appendChild(b)}
       box.appendChild(c);
     });
   });

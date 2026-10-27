@@ -151,8 +151,8 @@ input[type=range]{padding:0}
       <label for="pn">Nombre completo</label><input id="pn" autocomplete="off">
       <label for="pd">Documento</label><input id="pd" inputmode="numeric">
       <label for="pt">Teléfono</label><input id="pt" inputmode="tel">
-      <label for="pe">Correo</label><input id="pe" type="email">
-      <label for="pf">Fecha de nacimiento</label><input id="pf" type="date">
+      <div style="display:flex;gap:10px"><div style="flex:1"><label for="pkg">Peso (kg)</label><input id="pkg" type="number" inputmode="decimal" step="0.1" min="1" max="399" placeholder="Ej. 68.5"></div><div style="flex:1"><label for="pcm">Talla (cm)</label><input id="pcm" type="number" inputmode="decimal" step="0.1" min="30" max="259" placeholder="Ej. 165"></div></div><div id="pImc" style="margin:6px 2px 0;font-weight:700"></div>
+      <label for="pf">Fecha de nacimiento</label><input id="pf" type="date"><div class="sub" id="pEdad" style="margin:4px 2px 0"></div>
       <button class="out" id="pHC" style="width:100%;margin-top:12px;display:none">Abrir historia clínica</button>
       <div class="msg" id="mPm"></div>
       <div class="row"><button class="out" id="pCx">Cancelar</button><button class="out" id="pDel" style="color:#c0392b">Eliminar</button><button class="btn" id="pSv" style="margin:0;flex:2">Guardar</button></div>
@@ -191,7 +191,7 @@ input[type=range]{padding:0}
 
   <!-- Historia clínica -->
   <div class="hide" id="vHC">
-    <div class="top"><div><h1 id="hN"></h1><div class="sub" style="margin:2px 0 0">Historia clínica</div></div><button class="out" id="hBack">Volver</button></div>
+    <div class="top"><div><h1 id="hN"></h1><div class="sub" id="hSub" style="margin:2px 0 0">Historia clínica</div></div><button class="out" id="hBack">Volver</button></div>
     <div class="tabs" id="hTabs"><button class="tab on" id="hT1">Evaluación</button><button class="tab" id="hT2">Notas SOAP</button><button class="tab" id="hT3">Cuerpo</button><button class="tab" id="hT4">Archivos</button></div>
     <div class="msg" id="mH"></div>
     <section id="hV1">
@@ -530,16 +530,30 @@ function opt(v,t){var o=document.createElement("option");o.value=v;o.textContent
 function cerrar(id){$(id).className="modal"}
 
 /* Pacientes */
-function cargarPac(cb){sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento").order("nombre").limit(1000).then(function(r){if(!r.error){PACS=r.data}if(cb)cb()})}
+function cargarPac(cb){sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento,peso_kg,talla_cm").order("nombre").limit(1000).then(function(r){if(!r.error){PACS=r.data}if(cb)cb()})}
 function listaPac(){
   var q=$("pQ").value.trim().toLowerCase(),box=$("pList");box.innerHTML="";
   var L=PACS.filter(function(p){return !q||p.nombre.toLowerCase().indexOf(q)>=0||(p.documento||"").indexOf(q)>=0});
   if(!L.length){box.appendChild(el("div","sub",PACS.length?"Sin resultados.":"Aún no hay pacientes."));return}
-  L.forEach(function(p){var c=el("div","card");c.style.cssText="margin-bottom:8px;cursor:pointer";c.appendChild(el("b",null,p.nombre));var s2=el("div","sub",[p.documento,p.telefono].filter(Boolean).join(" · ")||"Sin datos de contacto");s2.style.margin="2px 0 0";c.appendChild(s2);c.onclick=function(){abrirPac(p)};box.appendChild(c)});
+  L.forEach(function(p){var c=el("div","card");c.style.cssText="margin-bottom:8px;cursor:pointer";c.appendChild(el("b",null,p.nombre));var s2=el("div","sub",[edadTxt(p.fecha_nacimiento),p.documento,p.telefono].filter(Boolean).join(" · ")||"Sin datos de contacto");s2.style.margin="2px 0 0";c.appendChild(s2);c.onclick=function(){abrirPac(p)};box.appendChild(c)});
 }
+function edad(f){if(!f)return null;var b=new Date(f+"T00:00:00"),h=new Date(),e=h.getFullYear()-b.getFullYear();if(h.getMonth()<b.getMonth()||(h.getMonth()===b.getMonth()&&h.getDate()<b.getDate()))e--;return e>=0&&e<130?e:null}
+function edadTxt(f){var e=edad(f);return e===null?"":(e===1?"1 año":e+" años")}
+function pintaEdad(){var t=edadTxt($("pf").value);$("pEdad").textContent=t?"Edad: "+t:""}
+$("pf").addEventListener("input",pintaEdad);$("pf").addEventListener("change",pintaEdad);
+function numOrNull(v){v=String(v||"").replace(",",".").trim();if(!v)return null;var n=Number(v);return isFinite(n)&&n>0?Math.round(n*10)/10:null}
+function imc(peso,talla,fnac){peso=Number(peso);talla=Number(talla);if(!(peso>0)||!(talla>=30))return null;var v=peso/Math.pow(talla/100,2);if(!isFinite(v)||v<5||v>100)return null;
+  var e=edad(fnac),cat,col;
+  if(e!==null&&e<18){cat="en menores de 18 se evalúa con tablas por edad y sexo";col="var(--mut)"}
+  else if(v<18.5){cat="Bajo peso";col="#d68910"}else if(v<25){cat="Peso normal";col="var(--okT)"}else if(v<30){cat="Sobrepeso";col="#d68910"}
+  else if(v<35){cat="Obesidad grado I";col="#c0392b"}else if(v<40){cat="Obesidad grado II";col="#c0392b"}else{cat="Obesidad grado III";col="#c0392b"}
+  return {v:v.toFixed(1),cat:cat,col:col}}
+function imcTxt(p){var m=imc(p.peso_kg,p.talla_cm,p.fecha_nacimiento);return m?"IMC "+m.v+" ("+m.cat+")":""}
+function pintaImc(){var m=imc(numOrNull($("pkg").value),numOrNull($("pcm").value),$("pf").value),d=$("pImc");if(!m){d.textContent="";return}d.textContent="IMC: "+m.v+" · "+m.cat;d.style.color=m.col}
+["pkg","pcm","pf"].forEach(function(i){$(i).addEventListener("input",pintaImc);$(i).addEventListener("change",pintaImc)});
 function abrirPac(p){
   EP=p||null;$("mPt").textContent=p?"Editar paciente":"Nuevo paciente";
-  $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pe").value=(p&&p.email)||"";$("pf").value=(p&&p.fecha_nacimiento)||"";
+  $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pkg").value=(p&&p.peso_kg!=null)?p.peso_kg:"";$("pcm").value=(p&&p.talla_cm!=null)?p.talla_cm:"";$("pf").value=(p&&p.fecha_nacimiento)||"";pintaEdad();pintaImc();
   $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";$("pHC").style.display=(p&&ME&&ME.rol!=="recepcion")?"block":"none";clear("mPm");$("mP").className="modal show";
 }
 $("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarPac(listaPac)};
@@ -550,7 +564,7 @@ $("pBack").onclick=function(){route()};
 $("pCx").onclick=function(){cerrar("mP")};
 $("pSv").onclick=function(){
   var n=$("pn").value.trim();if(!n){say("mPm","err","Escribe el nombre del paciente.");return}
-  var o={nombre:n,documento:$("pd").value.trim()||null,telefono:$("pt").value.trim()||null,email:$("pe").value.trim()||null,fecha_nacimiento:$("pf").value||null};
+  var o={nombre:n,documento:$("pd").value.trim()||null,telefono:$("pt").value.trim()||null,peso_kg:numOrNull($("pkg").value),talla_cm:numOrNull($("pcm").value),fecha_nacimiento:$("pf").value||null};
   var q=EP?sb.from("pacientes").update(o).eq("id",EP.id):sb.from("pacientes").insert(o);
   q.then(function(r){if(r.error){say("mPm","err",errp(r.error));return}cerrar("mP");cargarPac(listaPac)});
 };
@@ -641,7 +655,7 @@ $("hT1").onclick=function(){hTab(1)};$("hT2").onclick=function(){hTab(2)};$("hT3
 $("e_eva").oninput=function(){$("e_evav").textContent=this.value};
 $("n_eva").oninput=function(){$("n_evav").textContent=this.value};
 function abrirHC(p){
-  HP=p;HE=null;NT=[];$("hN").textContent=p.nombre;hTab(1);clear("mH");cerrar("mP");show("vHC");
+  HP=p;HE=null;NT=[];$("hN").textContent=p.nombre;$("hSub").textContent=["Historia clínica",edadTxt(p.fecha_nacimiento),imcTxt(p)].filter(Boolean).join(" · ");hTab(1);clear("mH");cerrar("mP");show("vHC");
   ["n_s","n_o","n_a","n_p"].forEach(function(i){$(i).value=""});
   restoreNota();
   sb.from("perfiles").select("id,nombre").then(function(r){NM={};if(!r.error){r.data.forEach(function(x){NM[x.id]=x.nombre})}cargarEval();cargarNotas();cargarMapa();cargarArch()});
@@ -1166,7 +1180,7 @@ function restaurarVista(rol){
   if(RESTAURADO)return;RESTAURADO=true;
   var v=null;try{v=JSON.parse(localStorage.getItem("bor_vista"))}catch(e){}
   if(!v||!v.pid||Date.now()-v.t>43200000||rol==="recepcion")return;
-  sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento").eq("id",v.pid).maybeSingle().then(function(q){
+  sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento,peso_kg,talla_cm").eq("id",v.pid).maybeSingle().then(function(q){
     if(q.error||!q.data)return;
     EP=q.data;abrirHC(q.data);hTab(v.tab||1);if(v.tab===3)pintarMapa();
   });

@@ -1182,7 +1182,7 @@ $("yAbono").onclick=function(){
   if(!pays.list.length){say("mY","err","Escribe un monto mayor a 0.");return}
   var q=PQ.filter(function(x){return x.id===pp})[0];
   if(q&&pays.total>q.sal+0.004){say("mY","err","El abono supera la deuda (debe "+sol(q.sal)+").");return}
-  $("yAbono").disabled=true;var sede=$("ySede").value||null;
+  $("yAbono").disabled=true;var sede=(q&&q.sede)||$("ySede").value||null;
   function paso(i){
     if(i>=pays.list.length){$("yAbono").disabled=false;$("yAm2").value="";saldoY();return}
     sb.rpc("registrar_abono",{p_pp:pp,p_monto:pays.list[i][0],p_metodo:pays.list[i][1],p_sede:sede}).then(function(r){

@@ -247,19 +247,29 @@ input[type=range]{padding:0}
   <!-- Pagos y paquetes -->
   <div class="hide" id="vPay">
     <div class="top"><h1>Pagos y paquetes</h1><button class="out" id="yBack">Volver</button></div>
-    <div class="tabs"><button class="tab on" id="yT1">Cobrar</button><button class="tab" id="yT2">Historial</button><button class="tab" id="yT3">Catálogo</button></div>
+    <div class="tabs"><button class="tab on" id="yT1">Cobrar</button><button class="tab" id="yT4">Deudas</button><button class="tab" id="yT2">Historial</button><button class="tab" id="yT3">Catálogo</button></div>
     <div class="msg" id="mY"></div>
     <section id="yV1">
       <div class="card"><label style="margin-top:0">Local</label><select id="ySede"></select></div>
       <div class="card" style="margin-top:10px"><label style="margin-top:0">Paciente</label><input id="yQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="yP"></select><div id="ySaldo" style="margin-top:10px"></div></div>
       <div class="card" style="margin-top:10px"><b>Vender paquete</b>
         <label>Paquete</label><select id="yPk"></select>
-        <div class="g2"><div><label>Monto cobrado (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <label>Precio acordado (S/)</label><input id="yPrecio" type="number" inputmode="decimal">
+        <div class="g2"><div><label>Abono hoy (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="sub" id="yDeb" style="margin:8px 0 0"></div>
         <button class="btn" id="yVend">Vender paquete</button></div>
+      <div class="card" style="margin-top:10px"><b>Registrar abono a un paquete</b>
+        <label>Paquete con deuda</label><select id="yAb"></select>
+        <div class="g2"><div><label>Monto (S/)</label><input id="yAm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yAme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <button class="btn" id="yAbono">Registrar abono</button></div>
       <div class="card" style="margin-top:10px"><b>Cobro de sesión suelta</b>
         <div class="g2"><div><label>Monto (S/)</label><input id="ySm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="ySme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <label>Concepto</label><input id="ySc" placeholder="Ej. Sesión del 15 de octubre">
         <button class="btn" id="yCobro">Registrar cobro</button></div>
+    </section>
+    <section id="yV4" class="hide">
+      <div class="card"><div class="top"><b>Total por cobrar</b><b id="dTot">S/ 0.00</b></div></div>
+      <div id="dList" style="margin-top:10px"></div>
     </section>
     <section id="yV2" class="hide">
       <div class="card"><div class="g2"><div><b id="yHoy">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado hoy</div></div><div><b id="yMes">S/ 0.00</b><div class="sub" style="margin:2px 0 0">Cobrado este mes</div></div></div></div>
@@ -813,8 +823,8 @@ function pintarArch(m){
 var CAT=[];
 function sol(n){return "S/ "+Number(n||0).toFixed(2)}
 var MT={efectivo:"Efectivo",yape:"Yape",plin:"Plin",tarjeta:"Tarjeta",transferencia:"Transferencia"};
-function yTab(n){for(var i=1;i<=3;i++){$("yV"+i).className=i===n?"":"hide";$("yT"+i).className="tab"+(i===n?" on":"")}}
-$("yT1").onclick=function(){yTab(1)};$("yT2").onclick=function(){yTab(2);cargarHist()};$("yT3").onclick=function(){yTab(3);pintarCat()};
+function yTab(n){for(var i=1;i<=4;i++){$("yV"+i).className=i===n?"":"hide";$("yT"+i).className="tab"+(i===n?" on":"")}}
+$("yT1").onclick=function(){yTab(1)};$("yT2").onclick=function(){yTab(2);cargarHist()};$("yT3").onclick=function(){yTab(3);pintarCat()};$("yT4").onclick=function(){yTab(4);cargarDeudas()};
 $("yBack").onclick=function(){route()};
 $("modPay").onclick=function(){
   show("vPay");yTab(1);clear("mY");$("yQ").value="";
@@ -834,22 +844,40 @@ function llenarPk(){
   CAT.filter(function(c){return c.activo}).forEach(function(c){s2.appendChild(opt(c.id,c.nombre+" · "+c.sesiones+" ses. · "+sol(c.precio)))});
   precioPk();
 }
-function precioPk(){var c=CAT.filter(function(x){return x.id===$("yPk").value})[0];$("yPm").value=c?c.precio:""}
+function precioPk(){var c=CAT.filter(function(x){return x.id===$("yPk").value})[0];$("yPrecio").value=c?c.precio:"";$("yPm").value=c?c.precio:"";debHint()}
+function debHint(){var pr=+$("yPrecio").value||0,ab=+$("yPm").value||0;$("yDeb").textContent=pr>0?(ab>=pr?"Pago completo: no queda deuda.":"Quedará debiendo "+sol(Math.max(pr-ab,0))+"."):""}
 $("yPk").onchange=precioPk;
+var PQ=[];
 function saldoY(){
-  var b=$("ySaldo");b.innerHTML="";var id=$("yP").value;if(!id)return;
-  sb.from("paquetes_paciente").select("sesiones_total,sesiones_usadas,comprado_en,paquetes(nombre)").eq("paciente_id",id).order("comprado_en",{ascending:false}).then(function(r){
+  var b=$("ySaldo");b.innerHTML="";var id=$("yP").value;$("yAb").innerHTML="";$("yAm").value="";PQ=[];if(!id)return;
+  sb.from("paquetes_paciente").select("id,sesiones_total,sesiones_usadas,precio_total,comprado_en,paquetes(nombre),pagos(monto)").eq("paciente_id",id).order("comprado_en",{ascending:false}).then(function(r){
     if(r.error){say("mY","err",errp(r.error));return}
     if(!r.data.length){b.appendChild(el("div","sub","Este paciente no tiene paquetes."));return}
-    r.data.forEach(function(x){var q=x.sesiones_total-x.sesiones_usadas;var d=el("div","sub",(x.paquetes&&x.paquetes.nombre||"Paquete")+": "+x.sesiones_usadas+" de "+x.sesiones_total+" usadas · "+(q>0?"quedan "+q:"agotado"));d.style.cssText="margin:4px 0;color:"+(q>0?"var(--okT)":"var(--mut)");b.appendChild(d)});
+    var deb=0;
+    r.data.forEach(function(x){
+      var pag=(x.pagos||[]).reduce(function(a2,y){return a2+Number(y.monto)},0),pr=Number(x.precio_total),sal=Math.max(pr-pag,0),q=x.sesiones_total-x.sesiones_usadas;
+      deb+=sal;if(sal>0.004){PQ.push({id:x.id,nombre:(x.paquetes&&x.paquetes.nombre)||"Paquete",sal:sal})}
+      var d=el("div","card");d.style.cssText="margin:6px 0;padding:10px";
+      d.appendChild(el("b",null,(x.paquetes&&x.paquetes.nombre)||"Paquete"));
+      d.appendChild(el("div","sub","Sesiones: "+x.sesiones_usadas+" de "+x.sesiones_total+" usadas · "+(q>0?"quedan "+q:"agotado")));
+      var f=el("div","sub","Precio "+sol(pr)+" · Pagado "+sol(pag)+" · ");f.style.margin="2px 0 0";
+      var s2=el("b",null,sal>0.004?"Debe "+sol(sal):"Pagado completo");s2.style.color=sal>0.004?"#c0392b":"var(--okT)";f.appendChild(s2);d.appendChild(f);
+      if(ME&&ME.rol==="admin"){var e=el("button","sm","Cambiar precio");e.style.margin="6px 0 0";e.onclick=function(){var v=prompt("Nuevo precio del paquete (S/):",pr);if(v===null)return;sb.rpc("ajustar_precio_paquete",{p_pp:x.id,p_precio:+v}).then(function(z){if(z.error){say("mY","err",errp(z.error))}else{say("mY","ok","Precio actualizado.");saldoY()}})};d.appendChild(e)}
+      b.appendChild(d);
+    });
+    var t=el("div",null,deb>0.004?"Deuda total del paciente: "+sol(deb):"Sin deudas");t.style.cssText="font-weight:700;margin-top:8px;color:"+(deb>0.004?"#c0392b":"var(--okT)");b.insertBefore(t,b.firstChild);
+    PQ.forEach(function(x){$("yAb").appendChild(opt(x.id,x.nombre+" · debe "+sol(x.sal)))});
+    if(PQ.length){$("yAm").value=PQ[0].sal.toFixed(2)}
   });
 }
 $("yVend").onclick=function(){
   var pid=$("yP").value,pk=$("yPk").value;
   if(!pid){say("mY","err","Elige un paciente.");return}
   if(!pk){say("mY","err","No hay paquetes en el catálogo. Pide al administrador que cree uno.");return}
+  if(!(+$("yPrecio").value>0)){say("mY","err","Escribe el precio acordado del paquete.");return}
+  if((+$("yPm").value||0)>+$("yPrecio").value){say("mY","err","El abono no puede ser mayor al precio.");return}
   $("yVend").disabled=true;
-  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_monto:+$("yPm").value||0,p_metodo:$("yPme").value,p_sede:$("ySede").value||null}).then(function(r){
+  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_precio:+$("yPrecio").value,p_monto:+$("yPm").value||0,p_metodo:$("yPme").value,p_sede:$("ySede").value||null}).then(function(r){
     $("yVend").disabled=false;
     if(r.error){say("mY","err",errp(r.error));return}
     say("mY","ok","Paquete vendido.");saldoY();
@@ -1108,6 +1136,41 @@ function restaurarVista(rol){
   sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento").eq("id",v.pid).maybeSingle().then(function(q){
     if(q.error||!q.data)return;
     EP=q.data;abrirHC(q.data);hTab(v.tab||1);if(v.tab===3)pintarMapa();
+  });
+}
+$("yPrecio").oninput=debHint;$("yPm").oninput=debHint;
+$("yAb").onchange=function(){var q=PQ.filter(function(x){return x.id===$("yAb").value})[0];$("yAm").value=q?q.sal.toFixed(2):""};
+$("yAbono").onclick=function(){
+  var pp=$("yAb").value,m=+$("yAm").value;
+  if(!pp){say("mY","err","Este paciente no tiene paquetes con deuda.");return}
+  if(!(m>0)){say("mY","err","Escribe un monto mayor a 0.");return}
+  $("yAbono").disabled=true;
+  sb.rpc("registrar_abono",{p_pp:pp,p_monto:m,p_metodo:$("yAme").value,p_sede:$("ySede").value||null}).then(function(r){
+    $("yAbono").disabled=false;
+    if(r.error){say("mY","err",errp(r.error));return}
+    say("mY","ok",Number(r.data)>0.004?"Abono registrado. Aún debe "+sol(r.data)+".":"Abono registrado. ¡Deuda saldada!");saldoY();
+  });
+};
+function irCobrar(id){yTab(1);$("yQ").value="";llenarYP(id);saldoY();window.scrollTo(0,0)}
+function cargarDeudas(){
+  sb.from("paquetes_paciente").select("id,paciente_id,precio_total,pacientes(nombre),paquetes(nombre),pagos(monto)").limit(3000).then(function(r){
+    var box=$("dList");box.innerHTML="";
+    if(r.error){say("mY","err",errp(r.error));return}
+    var G={},tot=0;
+    r.data.forEach(function(x){
+      var pag=(x.pagos||[]).reduce(function(a2,y){return a2+Number(y.monto)},0),sal=Number(x.precio_total)-pag;
+      if(sal>0.004){var k=x.paciente_id;if(!G[k]){G[k]={id:k,nombre:(x.pacientes&&x.pacientes.nombre)||"Paciente",sal:0,items:[]}}G[k].sal+=sal;G[k].items.push(((x.paquetes&&x.paquetes.nombre)||"Paquete")+": "+sol(sal));tot+=sal}
+    });
+    $("dTot").textContent=sol(tot);
+    var L=Object.keys(G).map(function(k){return G[k]}).sort(function(a2,b2){return b2.sal-a2.sal});
+    if(!L.length){box.appendChild(el("div","sub","Nadie tiene deudas pendientes."));return}
+    L.forEach(function(g){
+      var c=el("div","card");c.style.marginBottom="8px";
+      var t=el("div","top");t.appendChild(el("b",null,g.nombre));var m=el("b",null,sol(g.sal));m.style.color="#c0392b";t.appendChild(m);c.appendChild(t);
+      c.appendChild(el("div","sub",g.items.join(" · ")));
+      var b=el("button","sm","Cobrar abono");b.onclick=function(){irCobrar(g.id)};c.appendChild(b);
+      box.appendChild(c);
+    });
   });
 }
 setMode("in");

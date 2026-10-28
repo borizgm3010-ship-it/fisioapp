@@ -40,17 +40,16 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);back
     <h1 id="cName"></h1>
     <div class="sub">Reserva tu cita en pocos pasos.</div>
     <div class="card" id="sCard"><h2>1. Elige el local</h2><div class="chips" id="sChips"></div><div class="sub" id="sDir" style="margin:8px 0 0"></div></div>
-    <div class="card"><h2>2. Elige al terapeuta</h2><div class="chips" id="tChips"><span class="sub" style="margin:0">Primero elige un local.</span></div></div>
-    <div class="card"><h2>3. Elige el día</h2><input type="date" id="fecha"></div>
-    <div class="card"><h2>4. Elige la hora</h2><div class="slots" id="slots"><span class="sub" style="margin:0">Elige un terapeuta y un día.</span></div></div>
-    <div class="card" id="fCard"><h2>5. Tus datos</h2>
+    <div class="card"><h2>2. Elige el día</h2><input type="date" id="fecha"></div>
+    <div class="card"><h2>3. Elige la hora</h2><div class="slots" id="slots"><span class="sub" style="margin:0">Primero elige un local.</span></div></div>
+    <div class="card" id="fCard"><h2>4. Tus datos</h2>
       <label for="nom">Nombre completo</label><input id="nom" autocomplete="name">
       <label for="tel">Teléfono (WhatsApp)</label><input id="tel" type="tel" inputmode="tel" autocomplete="tel">
       <label for="eml">Correo (opcional)</label><input id="eml" type="email" autocomplete="email">
       <input class="hp" id="web" tabindex="-1" autocomplete="off" aria-hidden="true">
       <div class="msg" id="msg"></div>
       <button class="btn" id="go">Reservar cita</button>
-      <div class="fine">Al reservar aceptas que el centro use tus datos solo para gestionar tu cita. El centro confirmará tu reserva.</div>
+      <div class="fine">Al reservar aceptas que el centro use tus datos solo para gestionar tu cita. El centro confirmará tu reserva y te asignará un terapeuta.</div>
     </div>
   </div>
 
@@ -71,36 +70,29 @@ if(typeof supabase==="undefined"){
 }
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var SLUG=(new URLSearchParams(location.search).get("c")||"").toLowerCase();
-var T=null,SL=null,SD=null,TH=[],SE=[];
+var SL=null,SD=null,SE=[];
 function err(t){var m=$("msg");m.className="msg err";m.textContent=t}
 function limpiar(){$("msg").className="msg";$("msg").textContent=""}
 
 sb.rpc("reserva_info",{p_slug:SLUG}).then(function(r){
   if(r.error||!r.data){vista("vOff");return}
   $("cName").textContent=r.data.centro;document.title="Reserva tu cita · "+r.data.centro;
-  TH=r.data.terapeutas||[];SE=r.data.sedes||[];
-  if(!TH.length||!SE.length){vista("vOff");return}
+  SE=r.data.sedes||[];
+  if(!SE.length){vista("vOff");return}
   var sc=$("sChips");
-  SE.forEach(function(x){var c=document.createElement("button");c.className="chip";c.textContent=x.nombre;c.onclick=function(){SD=x.id;T=null;SL=null;Array.prototype.forEach.call(sc.children,function(y){y.className="chip"});c.className="chip on";$("sDir").textContent=x.direccion||"";chipsT();horarios()};sc.appendChild(c)});
+  SE.forEach(function(x){var c=document.createElement("button");c.className="chip";c.textContent=x.nombre;c.onclick=function(){SD=x.id;SL=null;Array.prototype.forEach.call(sc.children,function(y){y.className="chip"});c.className="chip on";$("sDir").textContent=x.direccion||"";horarios()};sc.appendChild(c)});
   if(SE.length===1){sc.firstChild.click()}
   var hoy=new Date(),max=new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()+60);
   $("fecha").min=ymd(hoy);$("fecha").max=ymd(max);$("fecha").value=ymd(hoy);
   vista("vMain");
 }).catch(function(){vista("vOff")});
 
-function chipsT(){
-  var b=$("tChips");b.innerHTML="";
-  var L=TH.filter(function(t){return !t.sedes||!t.sedes.length||t.sedes.indexOf(SD)>=0});
-  if(!L.length){b.textContent="No hay terapeutas en este local.";return}
-  L.forEach(function(t){var c=document.createElement("button");c.className="chip";c.textContent=t.nombre;c.onclick=function(){T=t.id;SL=null;Array.prototype.forEach.call(b.children,function(x){x.className="chip"});c.className="chip on";horarios()};b.appendChild(c)});
-  if(L.length===1){b.firstChild.click()}
-}
 $("fecha").onchange=function(){SL=null;horarios()};
 function horarios(){
   var box=$("slots");SL=null;
-  if(!T||!$("fecha").value){box.textContent="Elige un terapeuta y un día.";return}
+  if(!SD||!$("fecha").value){box.textContent="Elige un local y un día.";return}
   box.textContent="Buscando horarios...";
-  sb.rpc("reserva_horarios",{p_slug:SLUG,p_terapeuta:T,p_fecha:$("fecha").value}).then(function(r){
+  sb.rpc("reserva_horarios_local",{p_slug:SLUG,p_sede:SD,p_fecha:$("fecha").value}).then(function(r){
     box.innerHTML="";
     if(r.error){box.textContent="No se pudieron cargar los horarios.";return}
     if(!r.data.length){box.textContent="No hay horarios libres ese día. Prueba con otra fecha.";return}
@@ -111,12 +103,11 @@ $("go").onclick=function(){
   limpiar();
   if($("web").value){return}
   if(!SD){err("Elige un local.");return}
-  if(!T){err("Elige un terapeuta.");return}
   if(!SL){err("Elige una hora.");return}
   if($("nom").value.trim().length<3){err("Escribe tu nombre completo.");return}
   if($("tel").value.replace(/[^0-9]/g,"").length<7){err("Escribe un teléfono válido.");return}
   $("go").disabled=true;
-  sb.rpc("reservar",{p_slug:SLUG,p_sede:SD,p_terapeuta:T,p_inicio:SL,p_nombre:$("nom").value,p_telefono:$("tel").value,p_email:$("eml").value}).then(function(r){
+  sb.rpc("reservar_local",{p_slug:SLUG,p_sede:SD,p_inicio:SL,p_nombre:$("nom").value,p_telefono:$("tel").value,p_email:$("eml").value}).then(function(r){
     $("go").disabled=false;
     if(r.error){err(r.error.message||"No se pudo reservar. Inténtalo de nuevo.");horarios();return}
     $("dTxt").textContent="Tu cita quedó pedida en "+r.data.sede+" para el "+r.data.fecha+" a las "+r.data.hora+". El centro la confirmará pronto.";

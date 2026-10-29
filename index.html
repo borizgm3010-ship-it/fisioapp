@@ -144,6 +144,7 @@ input[type=range]{padding:0}
   <div class="hide" id="vPac">
     <div class="top"><h1>Pacientes</h1><button class="out" id="pBack">Volver</button></div>
     <input id="pQ" placeholder="Buscar por nombre o documento">
+    <div class="chips" id="pSed" style="margin:10px 0 0"></div>
     <button class="btn" id="pNew" style="margin:10px 0 12px">+ Nuevo paciente</button>
     <div id="pList"></div>
     <div class="modal" id="mP"><div class="sheet">
@@ -151,6 +152,7 @@ input[type=range]{padding:0}
       <label for="pn">Nombre completo</label><input id="pn" autocomplete="off">
       <label for="pd">Documento</label><input id="pd" inputmode="numeric">
       <label for="pt">Teléfono</label><input id="pt" inputmode="tel">
+      <label for="pl" id="plL">Local</label><select id="pl"></select>
       <div style="display:flex;gap:10px"><div style="flex:1"><label for="pkg">Peso (kg)</label><input id="pkg" type="number" inputmode="decimal" step="0.1" min="1" max="399" placeholder="Ej. 68.5"></div><div style="flex:1"><label for="pcm">Talla (cm)</label><input id="pcm" type="number" inputmode="decimal" step="0.1" min="30" max="259" placeholder="Ej. 165"></div></div><div id="pImc" style="margin:6px 2px 0;font-weight:700"></div>
       <label for="pf">Fecha de nacimiento</label><input id="pf" type="date"><div class="sub" id="pEdad" style="margin:4px 2px 0"></div>
       <button class="out" id="pHC" style="width:100%;margin-top:12px;display:none">Abrir historia clínica</button>
@@ -530,13 +532,22 @@ function opt(v,t){var o=document.createElement("option");o.value=v;o.textContent
 function cerrar(id){$(id).className="modal"}
 
 /* Pacientes */
-function cargarPac(cb){sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento,peso_kg,talla_cm").order("nombre").limit(1000).then(function(r){if(!r.error){PACS=r.data}if(cb)cb()})}
+var PS="all",PSEDE=true,PCOLS="id,nombre,documento,telefono,email,fecha_nacimiento,peso_kg,talla_cm";
+function pcols(){return PSEDE?PCOLS+",sede_id":PCOLS}
+function cargarPac(cb){sb.from("pacientes").select(pcols()).order("nombre").limit(1000).then(function(r){if(r.error&&PSEDE&&/sede_id/.test(r.error.message||"")){PSEDE=false;cargarPac(cb);return}if(!r.error){PACS=r.data}if(cb)cb()})}
 function listaPac(){
   var q=$("pQ").value.trim().toLowerCase(),box=$("pList");box.innerHTML="";
-  var L=PACS.filter(function(p){return !q||p.nombre.toLowerCase().indexOf(q)>=0||(p.documento||"").indexOf(q)>=0});
+  chipsP();
+  var L=PACS.filter(function(p){if(PS==="none"&&p.sede_id)return false;if(PS!=="all"&&PS!=="none"&&p.sede_id!==PS)return false;return !q||p.nombre.toLowerCase().indexOf(q)>=0||(p.documento||"").indexOf(q)>=0});
   if(!L.length){box.appendChild(el("div","sub",PACS.length?"Sin resultados.":"Aún no hay pacientes."));return}
-  L.forEach(function(p){var c=el("div","card");c.style.cssText="margin-bottom:8px;cursor:pointer";c.appendChild(el("b",null,p.nombre));var s2=el("div","sub",[edadTxt(p.fecha_nacimiento),p.documento,p.telefono].filter(Boolean).join(" · ")||"Sin datos de contacto");s2.style.margin="2px 0 0";c.appendChild(s2);c.onclick=function(){abrirPac(p)};box.appendChild(c)});
+  L.forEach(function(p){var c=el("div","card");c.style.cssText="margin-bottom:8px;cursor:pointer";c.appendChild(el("b",null,p.nombre));var s2=el("div","sub",[nomS(p.sede_id),edadTxt(p.fecha_nacimiento),p.documento,p.telefono].filter(Boolean).join(" · ")||"Sin datos de contacto");s2.style.margin="2px 0 0";c.appendChild(s2);c.onclick=function(){abrirPac(p)};box.appendChild(c)});
 }
+function chipsP(){
+  var b=$("pSed");b.innerHTML="";if(!PSEDE||SEDES.length<2){PS="all";return}
+  var sin=PACS.filter(function(p){return !p.sede_id}).length,ops=[{id:"all",nombre:"Todos"}].concat(SEDES);if(sin){ops.push({id:"none",nombre:"Sin local ("+sin+")"})}
+  ops.forEach(function(x){var c=el("button","chip"+(PS===x.id?" on":""),x.nombre);c.onclick=function(){PS=x.id;listaPac()};b.appendChild(c)});
+}
+function fillPL(v){$("pl").style.display=$("plL").style.display=PSEDE?"":"none";var s2=$("pl");s2.innerHTML="";s2.appendChild(opt("","Sin asignar"));SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});s2.value=v&&SEDES.some(function(x){return x.id===v})?v:""}
 function edad(f){if(!f)return null;var b=new Date(f+"T00:00:00"),h=new Date(),e=h.getFullYear()-b.getFullYear();if(h.getMonth()<b.getMonth()||(h.getMonth()===b.getMonth()&&h.getDate()<b.getDate()))e--;return e>=0&&e<130?e:null}
 function edadTxt(f){var e=edad(f);return e===null?"":(e===1?"1 año":e+" años")}
 function pintaEdad(){var t=edadTxt($("pf").value);$("pEdad").textContent=t?"Edad: "+t:""}
@@ -553,10 +564,10 @@ function pintaImc(){var m=imc(numOrNull($("pkg").value),numOrNull($("pcm").value
 ["pkg","pcm","pf"].forEach(function(i){$(i).addEventListener("input",pintaImc);$(i).addEventListener("change",pintaImc)});
 function abrirPac(p){
   EP=p||null;$("mPt").textContent=p?"Editar paciente":"Nuevo paciente";
-  $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pkg").value=(p&&p.peso_kg!=null)?p.peso_kg:"";$("pcm").value=(p&&p.talla_cm!=null)?p.talla_cm:"";$("pf").value=(p&&p.fecha_nacimiento)||"";pintaEdad();pintaImc();
+  $("pn").value=p?p.nombre:"";$("pd").value=(p&&p.documento)||"";$("pt").value=(p&&p.telefono)||"";$("pkg").value=(p&&p.peso_kg!=null)?p.peso_kg:"";$("pcm").value=(p&&p.talla_cm!=null)?p.talla_cm:"";$("pf").value=(p&&p.fecha_nacimiento)||"";fillPL(p?p.sede_id:(PS!=="all"&&PS!=="none"?PS:(GS!=="all"?GS:"")));pintaEdad();pintaImc();
   $("pDel").style.display=(p&&ME&&ME.rol==="admin")?"":"none";$("pHC").style.display=(p&&ME&&ME.rol!=="recepcion")?"block":"none";clear("mPm");$("mP").className="modal show";
 }
-$("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarPac(listaPac)};
+$("modPac").onclick=function(){show("vPac");$("pQ").value="";cargarSedes(function(){cargarPac(listaPac)})};
 $("modHC").onclick=$("modPac").onclick;
 $("pQ").oninput=listaPac;
 $("pNew").onclick=function(){abrirPac(null)};
@@ -564,7 +575,7 @@ $("pBack").onclick=function(){route()};
 $("pCx").onclick=function(){cerrar("mP")};
 $("pSv").onclick=function(){
   var n=$("pn").value.trim();if(!n){say("mPm","err","Escribe el nombre del paciente.");return}
-  var o={nombre:n,documento:$("pd").value.trim()||null,telefono:$("pt").value.trim()||null,peso_kg:numOrNull($("pkg").value),talla_cm:numOrNull($("pcm").value),fecha_nacimiento:$("pf").value||null};
+  var o={nombre:n,documento:$("pd").value.trim()||null,telefono:$("pt").value.trim()||null,peso_kg:numOrNull($("pkg").value),talla_cm:numOrNull($("pcm").value),fecha_nacimiento:$("pf").value||null};if(PSEDE){o.sede_id=$("pl").value||null}
   var q=EP?sb.from("pacientes").update(o).eq("id",EP.id):sb.from("pacientes").insert(o);
   q.then(function(r){if(r.error){say("mPm","err",errp(r.error));return}cerrar("mP");cargarPac(listaPac)});
 };
@@ -1180,10 +1191,12 @@ function restaurarVista(rol){
   if(RESTAURADO)return;RESTAURADO=true;
   var v=null;try{v=JSON.parse(localStorage.getItem("bor_vista"))}catch(e){}
   if(!v||!v.pid||Date.now()-v.t>43200000||rol==="recepcion")return;
-  sb.from("pacientes").select("id,nombre,documento,telefono,email,fecha_nacimiento,peso_kg,talla_cm").eq("id",v.pid).maybeSingle().then(function(q){
+  var rec=function(q){
+    if(q.error&&PSEDE&&/sede_id/.test(q.error.message||"")){PSEDE=false;sb.from("pacientes").select(pcols()).eq("id",v.pid).maybeSingle().then(rec);return}
     if(q.error||!q.data)return;
     EP=q.data;abrirHC(q.data);hTab(v.tab||1);if(v.tab===3)pintarMapa();
-  });
+  };
+  sb.from("pacientes").select(pcols()).eq("id",v.pid).maybeSingle().then(rec);
 }
 $("yPrecio").oninput=debHint;$("yPm").oninput=debHint;$("yPm2").oninput=debHint;
 $("yAb").onchange=function(){var q=PQ.filter(function(x){return x.id===$("yAb").value})[0];$("yAm").value=q?q.sal.toFixed(2):"";if(q&&q.sede){$("ySede").value=q.sede}};

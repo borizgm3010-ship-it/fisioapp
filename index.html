@@ -336,6 +336,13 @@ input[type=range]{padding:0}
       <button class="btn" id="rSv">Guardar reserva online</button>
       <div class="msg" id="mR"></div></div>
     <div id="tList"></div>
+    <div class="modal" id="mHr"><div class="sheet">
+      <h2 id="hrT">Horario</h2>
+      <div class="sub" style="margin:0 0 8px">Marca los días que trabaja y su hora de entrada y salida. Las reservas online solo se ofrecen dentro de este horario.</div>
+      <div id="hrDias"></div>
+      <div class="msg" id="mHrm"></div>
+      <div class="row"><button class="out" id="hrCx">Cancelar</button><button class="btn" id="hrSv" style="margin:0;flex:2">Guardar horario</button></div>
+    </div></div>
   </div>
 
   <!-- Panel -->
@@ -492,7 +499,7 @@ function loadTeam(){
       var c=document.createElement("div");c.className="card";c.style.marginTop="10px";
       var n=document.createElement("b");n.textContent=p.nombre+(ME&&p.id===ME.id?" (tú)":"");
       var e=document.createElement("div");e.className="sub";e.style.margin="2px 0 8px";e.textContent=(p.email||"")+(p.activo?"":" · desactivado");
-      c.appendChild(n);c.appendChild(e);sedesUI(c,p);
+      c.appendChild(n);c.appendChild(e);sedesUI(c,p);horarioUI(c,p);
       if(ME&&p.id!==ME.id){
         var sel=document.createElement("select");sel.className="sel";
         [["admin","Administrador"],["terapeuta","Terapeuta"],["recepcion","Recepción"]].forEach(function(o){var op=document.createElement("option");op.value=o[0];op.textContent=o[1];if(o[0]===p.rol)op.selected=true;sel.appendChild(op)});
@@ -507,7 +514,7 @@ function loadTeam(){
     });
   });
 }
-$("modTeam").onclick=function(){show("vTeam");clear("mTeam");clear("mR");cargarSedes(function(){loadTeam();loadReserva();loadLocales()},true)};
+$("modTeam").onclick=function(){show("vTeam");clear("mTeam");clear("mR");cargarSedes(function(){cargarHr(loadTeam);loadReserva();loadLocales()},true)};
 $("tBack").onclick=function(){route()};
 $("tWa").onclick=function(){
   var code=$("tCode").textContent,url=location.origin+location.pathname;
@@ -1015,6 +1022,56 @@ function fillSede(id){
   var s2=$(id);s2.innerHTML="";SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});
   if(GS!=="all"&&SEDES.some(function(x){return x.id===GS})){s2.value=GS}
 }
+/* Horarios de terapeutas */
+var HR={},HRP=null,DIAS=[[1,"Lun"],[2,"Mar"],[3,"Mié"],[4,"Jue"],[5,"Vie"],[6,"Sáb"],[0,"Dom"]];
+function mh(m){return pad(Math.floor(m/60))+":"+pad(m%60)}
+function resumenHr(L){
+  if(!L||!L.length)return "";
+  var g={};L.forEach(function(h){var k=mh(h.hora_inicio)+"–"+mh(h.hora_fin);(g[k]=g[k]||[]).push(h.dia)});
+  return Object.keys(g).map(function(k){var ds=DIAS.filter(function(d){return g[k].indexOf(d[0])>=0}).map(function(d){return d[1]});
+    var lv=["Lun","Mar","Mié","Jue","Vie"];var txt=(ds.length>=5&&lv.every(function(x){return ds.indexOf(x)>=0}))?["Lun–Vie"].concat(ds.filter(function(x){return lv.indexOf(x)<0})).join(", "):ds.join(", ");
+    return txt+" "+k}).join(" · ");
+}
+function cargarHr(cb){sb.from("horarios_terapeuta").select("terapeuta_id,dia,hora_inicio,hora_fin").order("dia").then(function(r){HR={};if(!r.error){r.data.forEach(function(h){(HR[h.terapeuta_id]=HR[h.terapeuta_id]||[]).push(h)})}if(cb)cb()})}
+function horarioUI(c,p){
+  if(!ME||ME.rol!=="admin"||p.rol==="recepcion"||!p.activo)return;
+  var w=el("div","sub");w.style.margin="0 0 8px";
+  var t=resumenHr(HR[p.id]);
+  w.textContent=t?"🕒 "+t:(p.rol==="admin"?"🕒 Sin horario: no recibe reservas online (cubres a mano).":"⚠️ Sin horario: no recibe reservas online.");
+  var b=el("button","out","🕒 Horario");b.style.margin="0 0 10px";b.onclick=function(){abrirHr(p)};
+  c.appendChild(w);c.appendChild(b);
+}
+function selHora(v){var s2=document.createElement("select");for(var m=360;m<=1380;m+=30){s2.appendChild(opt(String(m),mh(m)))}s2.value=String(v);return s2}
+function abrirHr(p){
+  HRP=p;$("hrT").textContent="Horario de "+p.nombre;clear("mHrm");
+  var box=$("hrDias");box.innerHTML="";var L=HR[p.id]||[];
+  DIAS.forEach(function(d){
+    var h=L.filter(function(x){return x.dia===d[0]})[0];
+    var row=el("div");row.style.cssText="display:flex;gap:8px;align-items:center;margin:8px 0";row.setAttribute("data-d",d[0]);
+    var l=document.createElement("label");l.style.cssText="display:flex;gap:6px;align-items:center;margin:0;color:var(--tx);min-width:62px";
+    var k=document.createElement("input");k.type="checkbox";k.style.width="auto";k.checked=!!h;l.appendChild(k);l.appendChild(document.createTextNode(d[1]));
+    var a=selHora(h?h.hora_inicio:540),z=selHora(h?h.hora_fin:1020);a.style.flex=z.style.flex="1";
+    var sep=el("span",null,"a");
+    var upd=function(){a.disabled=z.disabled=!k.checked;a.style.opacity=z.style.opacity=k.checked?"1":".4"};k.onchange=upd;upd();
+    row.appendChild(l);row.appendChild(a);row.appendChild(sep);row.appendChild(z);box.appendChild(row);
+  });
+  $("mHr").className="modal show";
+}
+$("hrCx").onclick=function(){cerrar("mHr")};
+$("hrSv").onclick=function(){
+  if(!HRP)return;var filas=[],mal=false;
+  $("hrDias").querySelectorAll("[data-d]").forEach(function(row){var k=row.querySelector("input"),ss=row.querySelectorAll("select");
+    if(!k.checked)return;var a=+ss[0].value,z=+ss[1].value;if(z<=a){mal=true;return}
+    filas.push({terapeuta_id:HRP.id,dia:+row.getAttribute("data-d"),hora_inicio:a,hora_fin:z})});
+  if(mal){say("mHrm","err","La hora de salida debe ser después de la de entrada.");return}
+  var bt=$("hrSv");bt.disabled=true;
+  sb.from("horarios_terapeuta").delete().eq("terapeuta_id",HRP.id).then(function(r){
+    if(r.error){bt.disabled=false;say("mHrm","err",errp(r.error));return}
+    var fin=function(){bt.disabled=false;cerrar("mHr");say("mTeam","ok","Horario guardado.");cargarHr(loadTeam)};
+    if(!filas.length){fin();return}
+    sb.from("horarios_terapeuta").insert(filas).then(function(x){if(x.error){bt.disabled=false;say("mHrm","err",errp(x.error));return}fin()});
+  });
+};
 function sedesUI(c,p){
   if(!SEDES.length||!ME||ME.rol!=="admin")return;
   var w=el("div","sub","Locales donde atiende (sin marcar = todos):");w.style.margin="0 0 6px";

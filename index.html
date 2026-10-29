@@ -310,6 +310,14 @@ input[type=range]{padding:0}
     <div id="rpBox" style="margin-top:12px"></div>
   </div>
 
+  <!-- Caja del día -->
+  <div class="hide" id="vCaja">
+    <div class="top"><h1>Caja del día</h1><button class="out" id="kBack">Volver</button></div>
+    <div class="g2"><div><label style="margin-top:0">Día</label><input id="kDia" type="date"></div><div><label style="margin-top:0">Local</label><select id="kSede"></select></div></div>
+    <div class="msg" id="mK"></div>
+    <div id="kBox" style="margin-top:12px"></div>
+  </div>
+
   <!-- Equipo (solo administrador) -->
   <div class="hide" id="vTeam">
     <div class="top"><h1>Equipo</h1><button class="out" id="tBack">Volver</button></div>
@@ -355,6 +363,8 @@ input[type=range]{padding:0}
       <div class="mod" id="modHC" style="cursor:pointer"><b>Historia clínica</b><span>Elige un paciente</span></div>
       <div class="mod" id="modPay" style="cursor:pointer"><b>Pagos y paquetes</b><span>Cobros y sesiones</span></div>
       <div class="mod" id="modRec" style="cursor:pointer"><b>Recordatorios</b><span>WhatsApp de citas</span></div>
+      <div class="mod hide" id="modCaja" style="cursor:pointer"><b>Caja del día</b><span>Cierre por local</span></div>
+      <div class="mod" id="modInv" style="cursor:pointer"><b>Inventario</b><span>Productos de ortopedia</span></div>
       <div class="mod hide" id="modRep" style="cursor:pointer"><b>Reportes</b><span>Ingresos y citas</span></div>
       <div class="mod hide" id="modTeam" style="cursor:pointer"><b>Equipo</b><span>Invitar y administrar</span></div>
     </div>
@@ -375,7 +385,7 @@ var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 var $=function(i){return document.getElementById(i)};
 var mode="in",recovery=false;
 
-function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC","vPay","vRec","vRep"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
+function show(id){["vAuth","vReset","vOnb","vDash","vTeam","vOff","vPac","vAg","vHC","vPay","vRec","vRep","vCaja"].forEach(function(v){var card=(v==="vAuth"||v==="vReset"||v==="vOnb"||v==="vOff");$(v).className=(card?"card ":"")+(v===id?"":"hide")})}
 function say(id,type,t){var m=$(id);m.className="msg "+type;m.textContent=t}
 function clear(id){$(id).className="msg";$(id).textContent=""}
 function traducir(e){
@@ -454,7 +464,7 @@ function route(){
       if(!r.data){show("vOnb");return}
       if(!r.data.activo){show("vOff");return}
       ME={id:ses.user.id,rol:r.data.rol,cid:r.data.centro_id};
-      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";$("modRep").className=r.data.rol==="admin"?"mod":"mod hide";
+      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";$("modRep").className=r.data.rol==="admin"?"mod":"mod hide";$("modCaja").className=(r.data.rol==="admin"||r.data.rol==="recepcion")?"mod":"mod hide";
       $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
       $("dU").textContent=r.data.nombre;
       $("dR").textContent=ROLES[r.data.rol]||r.data.rol;
@@ -1244,6 +1254,66 @@ $("hV1").addEventListener("input",function(){if(HP)dsave("bor_eval_"+HP.id,evalV
 $("hV1").addEventListener("change",function(){if(HP)dsave("bor_eval_"+HP.id,evalVals())});
 $("hV2").addEventListener("input",function(e){if(HP&&e.target.id&&e.target.id.indexOf("n_")===0){dsave("bor_nota_"+HP.id,{s:$("n_s").value,o:$("n_o").value,a:$("n_a").value,p:$("n_p").value,eva:$("n_eva").value})}});
 $("bnote").addEventListener("input",dsaveMapa);
+/* Caja del día */
+var KDATA=null;
+function hoyL(){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Lima"}).format(new Date())}
+$("modInv").onclick=function(){location.href="inventario.html"};
+$("modCaja").onclick=function(){
+  show("vCaja");clear("mK");if(!$("kDia").value)$("kDia").value=hoyL();
+  cargarSedes(function(){var s2=$("kSede"),v=s2.value;s2.innerHTML="";s2.appendChild(opt("","Todos los locales"));SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});
+    s2.value=v||(GS!=="all"?GS:"");if(s2.value===undefined)s2.value="";cargarCaja()},true);
+};
+$("kBack").onclick=function(){route()};
+$("kDia").onchange=cargarCaja;$("kSede").onchange=cargarCaja;
+function cargarCaja(){
+  var d=$("kDia").value||hoyL(),sd=$("kSede").value,box=$("kBox");box.innerHTML="";box.appendChild(el("div","sub","Calculando…"));
+  var ini=new Date(d+"T00:00:00-05:00"),fin=new Date(ini.getTime()+864e5);
+  var q1=sb.from("pagos").select("id,monto,metodo,concepto,pagado_en,sede_id,paquete_paciente_id,pacientes(nombre),perfiles(nombre)").gte("pagado_en",ini.toISOString()).lt("pagado_en",fin.toISOString()).order("pagado_en").limit(2000);
+  var q2=sb.from("movimientos_inventario").select("id,total,metodo,sede_id,creado_en,cantidad,nota,productos(nombre,variante),perfiles(nombre)").eq("tipo","venta").gte("creado_en",ini.toISOString()).lt("creado_en",fin.toISOString()).order("creado_en").limit(2000);
+  if(sd){q1=q1.eq("sede_id",sd);q2=q2.eq("sede_id",sd)}
+  Promise.all([q1,q2]).then(function(rs){
+    if(rs[0].error){box.innerHTML="";say("mK","err",errp(rs[0].error));return}
+    var L=[];
+    rs[0].data.forEach(function(x){L.push({t:new Date(x.pagado_en),tipo:x.paquete_paciente_id?"Paquetes":"Sesiones sueltas",monto:Number(x.monto||0),met:String(x.metodo||"").toLowerCase(),
+      det:((x.pacientes&&x.pacientes.nombre)||"Paciente")+(x.concepto?" · "+x.concepto:""),por:(x.perfiles&&x.perfiles.nombre)||"",sede:x.sede_id})});
+    if(!rs[1].error){rs[1].data.forEach(function(x){L.push({t:new Date(x.creado_en),tipo:"Ortopedia",monto:Number(x.total||0),met:String(x.metodo||"").toLowerCase(),
+      det:Math.abs(x.cantidad)+" × "+((x.productos&&x.productos.nombre)||"Producto")+(x.productos&&x.productos.variante?" ("+x.productos.variante+")":"")+(x.nota?" · "+x.nota:""),por:(x.perfiles&&x.perfiles.nombre)||"",sede:x.sede_id})})}
+    L.sort(function(a,b){return a.t-b.t});
+    KDATA={dia:d,sede:sd,L:L};pintarCaja();
+  });
+}
+function sumaPor(L,k){var g={};L.forEach(function(x){var key=x[k]||"Sin indicar";g[key]=(g[key]||0)+x.monto});return g}
+function pintarCaja(){
+  var box=$("kBox");box.innerHTML="";if(!KDATA)return;var L=KDATA.L;
+  var tot=L.reduce(function(a,x){return a+x.monto},0),pt=sumaPor(L,"tipo"),pm=sumaPor(L,"met"),pp=sumaPor(L,"por");
+  var c=el("div","card");var h=el("div","sub",(KDATA.sede?nomS(KDATA.sede):"Todos los locales")+" · "+new Date(KDATA.dia+"T12:00:00-05:00").toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"}));h.style.margin="0";c.appendChild(h);
+  var b=el("b",null,sol(tot));b.style.cssText="display:block;font-size:30px;margin:4px 0";c.appendChild(b);c.appendChild(el("div","sub",L.length+(L.length===1?" cobro":" cobros")+" en total"));box.appendChild(c);
+  var fila=function(card,a,v){var r=el("div");r.style.cssText="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd)";r.appendChild(el("span",null,a));r.appendChild(el("b",null,v));card.appendChild(r)};
+  var c1=el("div","card");c1.style.marginTop="10px";c1.appendChild(el("b",null,"Por tipo"));["Paquetes","Sesiones sueltas","Ortopedia"].forEach(function(k){fila(c1,k,sol(pt[k]||0))});box.appendChild(c1);
+  var c2=el("div","card");c2.style.marginTop="10px";c2.appendChild(el("b",null,"Por forma de pago"));
+  var mk=Object.keys(pm).sort(function(a,b){return pm[b]-pm[a]});if(!mk.length)c2.appendChild(el("div","sub","Sin cobros."));
+  mk.forEach(function(k){fila(c2,MT[k]||k,sol(pm[k]))});
+  var ef=pm.efectivo||0;
+  var lb=el("label",null,"Efectivo contado en caja (S/)");var inp=document.createElement("input");inp.type="number";inp.inputMode="decimal";inp.step="0.01";inp.placeholder="Cuenta el efectivo y escríbelo aquí";
+  var dif=el("div");dif.style.cssText="margin-top:8px;font-weight:700";
+  var calc=function(){var v=inp.value.trim();if(!v){dif.textContent="";return}var dd=Number(v.replace(",","."))-ef;
+    if(Math.abs(dd)<0.005){dif.textContent="✅ Cuadra con lo registrado.";dif.style.color="var(--okT)"}
+    else{dif.textContent=(dd>0?"Sobran ":"Faltan ")+sol(Math.abs(dd))+" respecto a lo registrado ("+sol(ef)+").";dif.style.color="#c0392b"}};
+  inp.oninput=calc;c2.appendChild(lb);c2.appendChild(inp);c2.appendChild(dif);box.appendChild(c2);
+  var pk=Object.keys(pp);if(pk.length){var c3=el("div","card");c3.style.marginTop="10px";c3.appendChild(el("b",null,"Registrado por"));pk.sort(function(a,b){return pp[b]-pp[a]}).forEach(function(k){fila(c3,k==="Sin indicar"?"Sin dato (pagos antiguos)":k,sol(pp[k]))});box.appendChild(c3)}
+  var c4=el("div","card");c4.style.marginTop="10px";c4.appendChild(el("b",null,"Detalle"));
+  if(!L.length)c4.appendChild(el("div","sub","No hay cobros este día."));
+  L.forEach(function(x){var r=el("div");r.style.cssText="padding:8px 0;border-bottom:1px solid var(--bd)";
+    var t=el("div");t.style.cssText="display:flex;justify-content:space-between;gap:10px";t.appendChild(el("b",null,x.det));t.appendChild(el("b",null,sol(x.monto)));r.appendChild(t);
+    r.appendChild(el("div","sub",[x.t.toLocaleTimeString("es-PE",{timeZone:"America/Lima",hour:"2-digit",minute:"2-digit"}),x.tipo,MT[x.met]||x.met,!KDATA.sede?nomS(x.sede):"",x.por].filter(Boolean).join(" · ")));c4.appendChild(r)});
+  box.appendChild(c4);
+  var wa=el("button","btn","Enviar resumen por WhatsApp");wa.onclick=function(){
+    var tx="*Caja "+(KDATA.sede?nomS(KDATA.sede):"todos los locales")+" · "+KDATA.dia.split("-").reverse().join("/")+"*\nTotal: "+sol(tot)+"\n\n*Por tipo*\n"+["Paquetes","Sesiones sueltas","Ortopedia"].map(function(k){return k+": "+sol(pt[k]||0)}).join("\n")+
+      "\n\n*Por forma de pago*\n"+(mk.map(function(k){return (MT[k]||k)+": "+sol(pm[k])}).join("\n")||"Sin cobros");
+    if(inp.value.trim())tx+="\n\nEfectivo contado: "+sol(Number(inp.value.replace(",",".")))+"\n"+dif.textContent;
+    window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
+  box.appendChild(wa);
+}
 function restaurarVista(rol){
   if(RESTAURADO)return;RESTAURADO=true;
   var v=null;try{v=JSON.parse(localStorage.getItem("bor_vista"))}catch(e){}

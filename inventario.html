@@ -136,7 +136,8 @@ function prod(id) { return S.productos.find(function (p) { return p.id === id; }
 function estado(p) { if (p.stock <= 0) return 'agotado'; if (p.stock <= p.stock_minimo) return 'bajo'; return 'ok'; }
 function coincide(p, q) { q = norm(q); return !q || norm(p.nombre + ' ' + (p.variante || '') + ' ' + (p.categoria || '')).indexOf(q) >= 0; }
 function thumb(p) { return '<div class="th">' + (p && p.foto_path ? '<img loading="lazy" src="' + esc(fotoUrl(p.foto_path)) + '" alt="">' : '🦿') + '</div>'; }
-function errMsg(e) { var m = (e && (e.message || e.error_description)) || String(e); return m.replace(/^.*?ERROR:\s*/, ''); }
+function diasAtras(n) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date(new Date(hoyLima() + 'T12:00:00-05:00').getTime() - n * 864e5)); }
+function errMsg(e) { var m = (e && (e.message || e.error_description)) || String(e); if (/p_fecha/.test(m)) return 'Todavía no se pueden registrar ventas de días anteriores. Usa la fecha de hoy.'; return m.replace(/^.*?ERROR:\s*/, ''); }
 var toastT;
 function toast(msg, err) { var t = document.getElementById('toast'); if (!t) return; t.innerHTML = '<div class="' + (err ? 'err' : '') + '">' + esc(msg) + '</div>'; clearTimeout(toastT); toastT = setTimeout(function () { t.innerHTML = ''; }, err ? 4500 : 2500); }
 function ocupado(btn, si, txt) { if (!btn) return; if (si) { btn.dataset.t = btn.textContent; btn.textContent = txt || 'Guardando…'; btn.disabled = true; } else { btn.textContent = btn.dataset.t || btn.textContent; btn.disabled = false; } }
@@ -404,6 +405,7 @@ function renderVender() {
       '<label>Cantidad</label><div class="step"><button onclick="paso(\'#vc\',-1)">−</button><input id="vc" type="number" inputmode="numeric" min="1" max="' + p.stock + '" value="' + S.ventaCant + '"><button onclick="paso(\'#vc\',1)">+</button></div>' +
       '<label>Precio por unidad (S/)</label><input id="vp" type="number" inputmode="decimal" step="0.01" min="0" value="' + S.ventaPrecio + '">' +
       '<label>Forma de pago</label><div class="chips" style="flex-wrap:wrap;margin:0">' + METODOS.map(function (m) { return '<button class="chip ' + (S.ventaMetodo === m ? 'on' : '') + '" onclick="S.ventaMetodo=\'' + m + '\';renderVender()">' + m + '</button>'; }).join('') + '</div>' +
+      '<label>Fecha de la venta</label><input id="vf" type="date" min="' + diasAtras(60) + '" max="' + hoyLima() + '" value="' + esc(S.ventaFecha || hoyLima()) + '"><div id="vfh" class="warnline" style="display:none"></div>' +
       '<label>Nota (opcional)</label><input id="vn" placeholder="Ej.: nombre del cliente">' +
       '<div class="tot"><span>Total</span><span id="vt"></span></div>' +
       '<button class="btn" id="vb" onclick="guardarVenta()">Registrar venta</button></div>';
@@ -428,6 +430,8 @@ function renderVender() {
       $('#vt').textContent = soles(c * num(S.ventaPrecio));
     };
     $('#vc').oninput = calc; $('#vp').oninput = calc; calc();
+    var pf = function () { S.ventaFecha = $('#vf').value || hoyLima(); var w = $('#vfh'); if (S.ventaFecha !== hoyLima()) { w.style.display = 'block'; w.textContent = '⚠️ Se registrará con fecha ' + S.ventaFecha.split('-').reverse().join('/') + ' (no hoy).'; } else w.style.display = 'none'; };
+    $('#vf').onchange = pf; $('#vf').oninput = pf; pf();
   }
   ventasHoy();
 }
@@ -443,8 +447,13 @@ async function ventasHoy() {
 async function guardarVenta() {
   var p = prod(S.ventaProd), c = ent($('#vc').value), pr = num($('#vp').value);
   if (c < 1) { toast('La cantidad debe ser al menos 1', 1); return; }
+  var fv = $('#vf').value || hoyLima();
+  if (fv > hoyLima()) { toast('La fecha no puede ser futura', 1); return; }
+  if (fv < diasAtras(60)) { toast('Solo se pueden registrar ventas de los últimos 60 días', 1); return; }
   var b = $('#vb'); ocupado(b, true);
-  var r = await sb.rpc('registrar_venta', { p_producto: p.id, p_cantidad: c, p_precio: pr, p_metodo: S.ventaMetodo, p_nota: $('#vn').value });
+  var args = { p_producto: p.id, p_cantidad: c, p_precio: pr, p_metodo: S.ventaMetodo, p_nota: $('#vn').value };
+  if (fv !== hoyLima()) args.p_fecha = fv;
+  var r = await sb.rpc('registrar_venta', args);
   if (r.error) { ocupado(b, false); toast(errMsg(r.error), 1); return; }
   toast('Venta registrada: ' + soles(c * pr));
   S.ventaProd = null; S.ventaCant = 1; S.ventaPrecio = null; S.qv = '';

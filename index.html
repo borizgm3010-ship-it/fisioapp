@@ -252,7 +252,7 @@ input[type=range]{padding:0}
     <div class="tabs"><button class="tab on" id="yT1">Cobrar</button><button class="tab" id="yT4">Deudas</button><button class="tab" id="yT2">Historial</button><button class="tab" id="yT3">Catálogo</button></div>
     <div class="msg" id="mY"></div>
     <section id="yV1">
-      <div class="card"><label style="margin-top:0">Local</label><select id="ySede"></select></div>
+      <div class="card"><div class="g2"><div><label style="margin-top:0">Local</label><select id="ySede"></select></div><div><label style="margin-top:0">Fecha del pago</label><input id="yFecha" type="date"></div></div><div id="yFh" style="display:none;margin-top:8px;padding:8px 10px;border-radius:10px;background:#fef3c7;color:#92400e;font-weight:600;font-size:14px"></div></div>
       <div class="card" style="margin-top:10px"><label style="margin-top:0">Paciente</label><input id="yQ" placeholder="Buscar paciente" autocomplete="off" style="margin-bottom:6px"><select id="yP"></select><div id="ySaldo" style="margin-top:10px"></div></div>
       <div class="card" style="margin-top:10px"><b>Vender paquete</b>
         <label>Paquete</label><select id="yPk"></select>
@@ -543,7 +543,7 @@ var ES={pendiente:"Pendiente",confirmada:"Confirmada",atendida:"Atendida",cancel
 function pad(n){return(n<10?"0":"")+n}
 function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
 function hm(d){return pad(d.getHours())+":"+pad(d.getMinutes())}
-function errp(e){var t=(e&&e.message)||"";if(/sin_cruce|exclusion/i.test(t))return "Ese terapeuta ya tiene una cita en ese horario.";if(/row-level|policy|permission/i.test(t))return "No tienes permiso para esta acción.";return traducir(e)}
+function errp(e){var t=(e&&e.message)||"";if(/p_fecha/.test(t))return "Todavía no se pueden registrar pagos de días anteriores aquí. Usa la fecha de hoy o avisa al administrador.";if(/sin_cruce|exclusion/i.test(t))return "Ese terapeuta ya tiene una cita en ese horario.";if(/row-level|policy|permission/i.test(t))return "No tienes permiso para esta acción.";return traducir(e)}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
 function opt(v,t){var o=document.createElement("option");o.value=v;o.textContent=t;return o}
 function cerrar(id){$(id).className="modal"}
@@ -874,7 +874,14 @@ var MT={efectivo:"Efectivo",yape:"Yape",plin:"Plin",tarjeta:"Tarjeta",transferen
 function yTab(n){for(var i=1;i<=4;i++){$("yV"+i).className=i===n?"":"hide";$("yT"+i).className="tab"+(i===n?" on":"")}}
 $("yT1").onclick=function(){yTab(1)};$("yT2").onclick=function(){yTab(2);cargarHist()};$("yT3").onclick=function(){yTab(3);pintarCat()};$("yT4").onclick=function(){yTab(4);cargarDeudas()};
 $("yBack").onclick=function(){route()};
-$("modPay").onclick=function(){
+function fechaPago(){var v=$("yFecha").value,h=hoyL();return(!v||v===h)?null:v}
+function fechaOk(){var v=fechaPago();if(!v)return true;var h=hoyL();if(v>h){say("mY","err","La fecha del pago no puede ser futura.");return false}
+  if((new Date(h+"T12:00:00-05:00")-new Date(v+"T12:00:00-05:00"))/864e5>60){say("mY","err","Solo se pueden registrar pagos de los últimos 60 días.");return false}return true}
+function conF(o){var v=fechaPago();if(v)o.p_fecha=v;return o}
+function pintaFh(){var v=fechaPago(),b=$("yFh");if(!v){b.style.display="none";return}b.style.display="block";b.textContent="⚠️ Se registrará con fecha "+v.split("-").reverse().join("/")+" (no hoy).";}
+$("yFecha").addEventListener("change",pintaFh);$("yFecha").addEventListener("input",pintaFh);
+function resetFecha(){var h=hoyL(),d=new Date(new Date(h+"T12:00:00-05:00").getTime()-60*864e5);$("yFecha").max=h;$("yFecha").min=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Lima"}).format(d);$("yFecha").value=h;pintaFh()}
+$("modPay").onclick=function(){resetFecha();
   show("vPay");yTab(1);clear("mY");$("yQ").value="";
   $("yAdm").style.display=(ME&&ME.rol==="admin")?"":"none";
   cargarSedes(function(){fillSede("ySede");fillTodos("cLoc","Ambos locales");fillTodos("dSede","Todos los locales");cargarPac(function(){llenarYP(null);cargarCat(function(){llenarPk();saldoY()})})});
@@ -933,12 +940,13 @@ $("yVend").onclick=function(){
   if(pays.error){say("mY","err",pays.error);return}
   if(pays.total>pr+0.004){say("mY","err","Los abonos suman más que el precio del paquete.");return}
   var p1=pays.list[0]||[0,$("yPme").value],sede=$("ySede").value||null;
+  if(!fechaOk())return;
   $("yVend").disabled=true;
-  sb.rpc("vender_paquete",{p_paciente:pid,p_paquete:pk,p_precio:pr,p_monto:p1[0],p_metodo:p1[1],p_sede:sede}).then(function(r){
+  sb.rpc("vender_paquete",conF({p_paciente:pid,p_paquete:pk,p_precio:pr,p_monto:p1[0],p_metodo:p1[1],p_sede:sede})).then(function(r){
     if(r.error){$("yVend").disabled=false;say("mY","err",errp(r.error));return}
     function fin(){$("yVend").disabled=false;$("yPm2").value="";say("mY","ok","Paquete vendido.");saldoY()}
     if(pays.list[1]){
-      sb.rpc("registrar_abono",{p_pp:r.data,p_monto:pays.list[1][0],p_metodo:pays.list[1][1],p_sede:sede}).then(function(z){
+      sb.rpc("registrar_abono",conF({p_pp:r.data,p_monto:pays.list[1][0],p_metodo:pays.list[1][1],p_sede:sede})).then(function(z){
         if(z.error){$("yVend").disabled=false;say("mY","err","El paquete se vendió, pero el segundo pago no se registró: "+errp(z.error));saldoY();return}
         fin();
       });
@@ -949,8 +957,10 @@ $("yCobro").onclick=function(){
   var pid=$("yP").value,m=+$("ySm").value;
   if(!pid){say("mY","err","Elige un paciente.");return}
   if(!(m>0)){say("mY","err","Escribe un monto mayor a 0.");return}
+  if(!fechaOk())return;
+  var ins={paciente_id:pid,monto:m,metodo:$("ySme").value,sede_id:$("ySede").value||null,concepto:$("ySc").value.trim()||null};var fp=fechaPago();if(fp){ins.pagado_en=new Date(fp+"T12:00:00-05:00").toISOString()}
   $("yCobro").disabled=true;
-  sb.from("pagos").insert({paciente_id:pid,monto:m,metodo:$("ySme").value,sede_id:$("ySede").value||null,concepto:$("ySc").value.trim()||null}).then(function(r){
+  sb.from("pagos").insert(ins).then(function(r){
     $("yCobro").disabled=false;
     if(r.error){say("mY","err",errp(r.error));return}
     $("ySm").value="";$("ySc").value="";say("mY","ok","Cobro registrado.");
@@ -1336,10 +1346,11 @@ $("yAbono").onclick=function(){
   if(!pays.list.length){say("mY","err","Escribe un monto mayor a 0.");return}
   var q=PQ.filter(function(x){return x.id===pp})[0];
   if(q&&pays.total>q.sal+0.004){say("mY","err","El abono supera la deuda (debe "+sol(q.sal)+").");return}
+  if(!fechaOk())return;
   $("yAbono").disabled=true;var sede=(q&&q.sede)||$("ySede").value||null;
   function paso(i){
     if(i>=pays.list.length){$("yAbono").disabled=false;$("yAm2").value="";saldoY();return}
-    sb.rpc("registrar_abono",{p_pp:pp,p_monto:pays.list[i][0],p_metodo:pays.list[i][1],p_sede:sede}).then(function(r){
+    sb.rpc("registrar_abono",conF({p_pp:pp,p_monto:pays.list[i][0],p_metodo:pays.list[i][1],p_sede:sede})).then(function(r){
       if(r.error){$("yAbono").disabled=false;say("mY","err",(i?"El primer pago se registró, pero el segundo no: ":"")+errp(r.error));saldoY();return}
       if(i===pays.list.length-1){say("mY","ok",Number(r.data)>0.004?"Abono registrado. Aún debe "+sol(r.data)+".":"Abono registrado. ¡Deuda saldada!")}
       paso(i+1);

@@ -917,12 +917,33 @@ function saldoY(){
       d.appendChild(el("div","sub","Sesiones: "+x.sesiones_usadas+" de "+x.sesiones_total+" usadas · "+(q>0?"quedan "+q:"agotado")));
       var f=el("div","sub","Precio "+sol(pr)+" · Pagado "+sol(pag)+" · ");f.style.margin="2px 0 0";
       var s2=el("b",null,sal>0.004?"Debe "+sol(sal):"Pagado completo");s2.style.color=sal>0.004?"#c0392b":"var(--okT)";f.appendChild(s2);d.appendChild(f);
-      if(ME&&ME.rol==="admin"){var e=el("button","sm","Cambiar precio");e.style.margin="6px 0 0";e.onclick=function(){var v=prompt("Nuevo precio del paquete (S/):",pr);if(v===null)return;sb.rpc("ajustar_precio_paquete",{p_pp:x.id,p_precio:+v}).then(function(z){if(z.error){say("mY","err",errp(z.error))}else{say("mY","ok","Precio actualizado.");saldoY()}})};d.appendChild(e)}
+      if(ME&&ME.rol==="admin"){var e=el("button","sm","Cambiar precio");e.style.margin="6px 0 0";e.onclick=function(){var v=prompt("Nuevo precio del paquete (S/):",pr);if(v===null)return;sb.rpc("ajustar_precio_paquete",{p_pp:x.id,p_precio:+v}).then(function(z){if(z.error){say("mY","err",errp(z.error))}else{say("mY","ok","Precio actualizado.");saldoY()}})};d.appendChild(e);
+        var xb=el("button","sm","🗑️ Eliminar paquete");xb.style.cssText="margin:6px 0 0 8px;color:#c0392b";xb.onclick=function(){elimPaq(x,pag,xb)};d.appendChild(xb)}
       b.appendChild(d);
     });
     var t=el("div",null,deb>0.004?"Deuda total del paciente: "+sol(deb):"Sin deudas");t.style.cssText="font-weight:700;margin-top:8px;color:"+(deb>0.004?"#c0392b":"var(--okT)");b.insertBefore(t,b.firstChild);
     PQ.forEach(function(x){$("yAb").appendChild(opt(x.id,x.nombre+" · debe "+sol(x.sal)))});
     if(PQ.length){$("yAm").value=PQ[0].sal.toFixed(2)}
+  });
+}
+function elimPaq(x,pag,btn){
+  var nom=(x.paquetes&&x.paquetes.nombre)||"Paquete";
+  var msg="¿Eliminar \""+nom+"\" de este paciente?"+(pag>0?"\n\nTambién se eliminarán sus pagos ("+sol(pag)+") y dejarán de contar en la caja.":"")+(x.sesiones_usadas>0?"\n\nOjo: ya tiene "+x.sesiones_usadas+" sesiones usadas.":"")+"\n\nNo se puede deshacer.";
+  if(!confirm(msg))return;btn.disabled=true;
+  sb.from("pagos").select("id").eq("paquete_paciente_id",x.id).then(function(r){
+    if(r.error){btn.disabled=false;say("mY","err",errp(r.error));return}
+    var ids=r.data.map(function(y){return y.id});
+    function sig(i){
+      if(i>=ids.length){
+        sb.from("paquetes_paciente").delete().eq("id",x.id).select("id").then(function(z){
+          btn.disabled=false;
+          if(z.error){say("mY","err",errp(z.error));saldoY();return}
+          if(!z.data||!z.data.length){say("mY","err","No se pudo eliminar el paquete.");saldoY();return}
+          say("mY","ok","Paquete eliminado.");saldoY()});
+        return}
+      sb.rpc("eliminar_pago",{p_id:ids[i]}).then(function(z){if(z.error){btn.disabled=false;say("mY","err",errp(z.error));saldoY();return}sig(i+1)});
+    }
+    sig(0);
   });
 }
 function fillTodos(id,txt){var s2=$(id);s2.innerHTML="";s2.appendChild(opt("",txt));SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))})}

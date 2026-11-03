@@ -257,19 +257,19 @@ input[type=range]{padding:0}
       <div class="card" style="margin-top:10px"><b>Vender paquete</b>
         <label>Paquete</label><select id="yPk"></select>
         <label>Precio acordado (S/)</label><input id="yPrecio" type="number" inputmode="decimal">
-        <div class="g2"><div><label>Abono hoy (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="g2"><div><label>Abono hoy (S/)</label><input id="yPm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yPme"><option value="efectivo">Efectivo</option><option value="yape_fisiomi">Yape Fisiomi</option><option value="yape_siomara">Yape Siomara</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <label>Segundo método de pago (opcional)</label>
-        <div class="g2"><div><input id="yPm2" type="number" inputmode="decimal" placeholder="Monto (S/)"></div><div><select id="yPme2"><option value="">Ninguno</option><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="g2"><div><input id="yPm2" type="number" inputmode="decimal" placeholder="Monto (S/)"></div><div><select id="yPme2"><option value="">Ninguno</option><option value="efectivo">Efectivo</option><option value="yape_fisiomi">Yape Fisiomi</option><option value="yape_siomara">Yape Siomara</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <div class="sub" id="yDeb" style="margin:8px 0 0"></div>
         <button class="btn" id="yVend">Vender paquete</button></div>
       <div class="card" style="margin-top:10px"><b>Registrar abono a un paquete</b>
         <label>Paquete con deuda</label><select id="yAb"></select>
-        <div class="g2"><div><label>Monto (S/)</label><input id="yAm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yAme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="g2"><div><label>Monto (S/)</label><input id="yAm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="yAme"><option value="efectivo">Efectivo</option><option value="yape_fisiomi">Yape Fisiomi</option><option value="yape_siomara">Yape Siomara</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <label>Segundo método de pago (opcional)</label>
-        <div class="g2"><div><input id="yAm2" type="number" inputmode="decimal" placeholder="Monto (S/)"></div><div><select id="yAme2"><option value="">Ninguno</option><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="g2"><div><input id="yAm2" type="number" inputmode="decimal" placeholder="Monto (S/)"></div><div><select id="yAme2"><option value="">Ninguno</option><option value="efectivo">Efectivo</option><option value="yape_fisiomi">Yape Fisiomi</option><option value="yape_siomara">Yape Siomara</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <button class="btn" id="yAbono">Registrar abono</button></div>
       <div class="card" style="margin-top:10px"><b>Cobro de sesión suelta</b>
-        <div class="g2"><div><label>Monto (S/)</label><input id="ySm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="ySme"><option value="efectivo">Efectivo</option><option value="yape">Yape</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
+        <div class="g2"><div><label>Monto (S/)</label><input id="ySm" type="number" inputmode="decimal"></div><div><label>Método</label><select id="ySme"><option value="efectivo">Efectivo</option><option value="yape_fisiomi">Yape Fisiomi</option><option value="yape_siomara">Yape Siomara</option><option value="plin">Plin</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div>
         <label>Concepto</label><input id="ySc" placeholder="Ej. Sesión del 15 de octubre">
         <button class="btn" id="yCobro">Registrar cobro</button></div>
     </section>
@@ -459,12 +459,12 @@ function route(){
     var ses=s.data&&s.data.session;CURU=ses?ses.user.id:null;
     if(recovery&&ses){show("vReset");return}
     if(!ses){show("vAuth");return}
-    sb.from("perfiles").select("nombre,rol,activo,centro_id,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
+    sb.from("perfiles").select("nombre,rol,activo,centro_id,sedes,centros(nombre)").eq("id",ses.user.id).maybeSingle().then(function(r){
       if(r.error){show("vAuth");say("mAuth","err",traducir(r.error));return}
       if(!r.data){show("vOnb");return}
       if(!r.data.activo){show("vOff");return}
-      ME={id:ses.user.id,rol:r.data.rol,cid:r.data.centro_id};
-      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";$("modRep").className=r.data.rol==="admin"?"mod":"mod hide";$("modCaja").className=(r.data.rol==="admin"||r.data.rol==="recepcion")?"mod":"mod hide";
+      ME={id:ses.user.id,rol:r.data.rol,cid:r.data.centro_id,sedes:r.data.sedes||[]};
+      $("modTeam").className=r.data.rol==="admin"?"mod":"mod hide";$("modRep").className=r.data.rol==="admin"?"mod":"mod hide";$("modCaja").className=(r.data.rol==="admin"||r.data.rol==="recepcion"||(r.data.rol==="terapeuta"&&(r.data.sedes||[]).length))?"mod":"mod hide";
       $("dC").textContent=(r.data.centros&&r.data.centros.nombre)||"Mi centro";
       $("dU").textContent=r.data.nombre;
       $("dR").textContent=ROLES[r.data.rol]||r.data.rol;
@@ -870,7 +870,7 @@ function pintarArch(m){
 }
 var CAT=[];
 function sol(n){return "S/ "+Number(n||0).toFixed(2)}
-var MT={efectivo:"Efectivo",yape:"Yape",plin:"Plin",tarjeta:"Tarjeta",transferencia:"Transferencia"};
+var MT={efectivo:"Efectivo",yape_fisiomi:"Yape Fisiomi",yape_siomara:"Yape Siomara",yape:"Yape",plin:"Plin",tarjeta:"Tarjeta",transferencia:"Transferencia"};
 function yTab(n){for(var i=1;i<=4;i++){$("yV"+i).className=i===n?"":"hide";$("yT"+i).className="tab"+(i===n?" on":"")}}
 $("yT1").onclick=function(){yTab(1)};$("yT2").onclick=function(){yTab(2);cargarHist()};$("yT3").onclick=function(){yTab(3);pintarCat()};$("yT4").onclick=function(){yTab(4);cargarDeudas()};
 $("yBack").onclick=function(){route()};
@@ -1286,13 +1286,15 @@ $("hV1").addEventListener("change",function(){if(HP)dsave("bor_eval_"+HP.id,eval
 $("hV2").addEventListener("input",function(e){if(HP&&e.target.id&&e.target.id.indexOf("n_")===0){dsave("bor_nota_"+HP.id,{s:$("n_s").value,o:$("n_o").value,a:$("n_a").value,p:$("n_p").value,eva:$("n_eva").value})}});
 $("bnote").addEventListener("input",dsaveMapa);
 /* Caja del día */
-var KDATA=null;
+var KDATA=null,CTIPO={abono:"Paquetes",paquete:"Paquetes",suelta:"Sesiones sueltas",ortopedia:"Ortopedia",otro:"Otros"},CNOM={abono:"Abono de paquete",paquete:"Paquete nuevo",suelta:"Sesión suelta",ortopedia:"Ortopedia",otro:"Otro"},CF={tipo:"abono",met:"efectivo"};
 function hoyL(){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Lima"}).format(new Date())}
 $("modInv").onclick=function(){location.href="inventario.html"};
 $("modCaja").onclick=function(){
   show("vCaja");clear("mK");if(!$("kDia").value)$("kDia").value=hoyL();
-  cargarSedes(function(){var s2=$("kSede"),v=s2.value;s2.innerHTML="";s2.appendChild(opt("","Todos los locales"));SEDES.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});
-    s2.value=v||(GS!=="all"?GS:"");if(s2.value===undefined)s2.value="";cargarCaja()},true);
+  cargarSedes(function(){var s2=$("kSede"),v=s2.value;s2.innerHTML="";
+    var ter=ME&&ME.rol==="terapeuta",LS=ter?SEDES.filter(function(x){return ME.sedes.indexOf(x.id)>=0}):SEDES;
+    if(!ter)s2.appendChild(opt("","Todos los locales"));LS.forEach(function(x){s2.appendChild(opt(x.id,x.nombre))});
+    if(ter){s2.value=LS.some(function(x){return x.id===v})?v:(LS[0]?LS[0].id:"")}else{s2.value=v||(GS!=="all"?GS:"");if(s2.value===undefined)s2.value=""}cargarCaja();if(!PACS.length){cargarPac(function(){if(KDATA)pintarCaja()})}},true);
 };
 $("kBack").onclick=function(){route()};
 $("kDia").onchange=cargarCaja;$("kSede").onchange=cargarCaja;
@@ -1301,17 +1303,48 @@ function cargarCaja(){
   var ini=new Date(d+"T00:00:00-05:00"),fin=new Date(ini.getTime()+864e5);
   var q1=sb.from("pagos").select("id,monto,metodo,concepto,pagado_en,sede_id,paquete_paciente_id,pacientes(nombre),perfiles(nombre)").gte("pagado_en",ini.toISOString()).lt("pagado_en",fin.toISOString()).order("pagado_en").limit(2000);
   var q2=sb.from("movimientos_inventario").select("id,total,metodo,sede_id,creado_en,cantidad,nota,productos(nombre,variante),perfiles(nombre)").eq("tipo","venta").gte("creado_en",ini.toISOString()).lt("creado_en",fin.toISOString()).order("creado_en").limit(2000);
-  if(sd){q1=q1.eq("sede_id",sd);q2=q2.eq("sede_id",sd)}
-  Promise.all([q1,q2]).then(function(rs){
+  var q3=sb.from("caja_cuaderno").select("id,fecha,nombre,tipo,monto,metodo,nota,sede_id,creado_en,perfiles(nombre)").eq("fecha",d).order("creado_en").limit(2000);
+  if(sd){q1=q1.eq("sede_id",sd);q2=q2.eq("sede_id",sd);q3=q3.eq("sede_id",sd)}
+  Promise.all([q1,q2,q3]).then(function(rs){
     if(rs[0].error){box.innerHTML="";say("mK","err",errp(rs[0].error));return}
     var L=[];
-    rs[0].data.forEach(function(x){L.push({t:new Date(x.pagado_en),tipo:x.paquete_paciente_id?"Paquetes":"Sesiones sueltas",monto:Number(x.monto||0),met:String(x.metodo||"").toLowerCase(),
+    rs[0].data.forEach(function(x){L.push({t:new Date(x.pagado_en),tipo:x.paquete_paciente_id?"Paquetes":"Sesiones sueltas",monto:Number(x.monto||0),met:nMet(x.metodo),
       det:((x.pacientes&&x.pacientes.nombre)||"Paciente")+(x.concepto?" · "+x.concepto:""),por:(x.perfiles&&x.perfiles.nombre)||"",sede:x.sede_id})});
-    if(!rs[1].error){rs[1].data.forEach(function(x){L.push({t:new Date(x.creado_en),tipo:"Ortopedia",monto:Number(x.total||0),met:String(x.metodo||"").toLowerCase(),
+    if(!rs[1].error){rs[1].data.forEach(function(x){L.push({t:new Date(x.creado_en),tipo:"Ortopedia",monto:Number(x.total||0),met:nMet(x.metodo),
       det:Math.abs(x.cantidad)+" × "+((x.productos&&x.productos.nombre)||"Producto")+(x.productos&&x.productos.variante?" ("+x.productos.variante+")":"")+(x.nota?" · "+x.nota:""),por:(x.perfiles&&x.perfiles.nombre)||"",sede:x.sede_id})})}
+    if(!rs[2].error){rs[2].data.forEach(function(x){L.push({t:new Date(x.creado_en),tipo:CTIPO[x.tipo]||"Otros",monto:Number(x.monto||0),met:nMet(x.metodo),
+      det:"📒 "+x.nombre+" · "+(CNOM[x.tipo]||x.tipo)+(x.nota?" · "+x.nota:""),por:(x.perfiles&&x.perfiles.nombre)||"",sede:x.sede_id,cid:x.id})})}
     L.sort(function(a,b){return a.t-b.t});
     KDATA={dia:d,sede:sd,L:L};pintarCaja();
   });
+}
+function nMet(m){return String(m||"").trim().toLowerCase().replace(/\s+/g,"_")}
+function formCuaderno(){
+  var c=el("div","card");c.style.marginTop="10px";c.appendChild(el("b",null,"📒 Pasar del cuaderno"));
+  if(!KDATA.sede){c.appendChild(el("div","sub","Elige un local arriba para pasar lo anotado en el cuaderno."));return c}
+  var sub=el("div","sub","Se guardará en "+nomS(KDATA.sede)+" con fecha "+KDATA.dia.split("-").reverse().join("/")+". Solo suma al dinero del día; no cambia paquetes ni deudas.");sub.style.margin="2px 0 6px";c.appendChild(sub);
+  var mk=function(lbl,node){var l=el("label",null,lbl);c.appendChild(l);c.appendChild(node);return node};
+  var nom=document.createElement("input");nom.placeholder="Ej. Paul Tejada";nom.setAttribute("list","kPacL");mk("Nombre del paciente o cliente",nom);
+  var dl=document.createElement("datalist");dl.id="kPacL";(PACS||[]).forEach(function(p){var o=document.createElement("option");o.value=p.nombre;dl.appendChild(o)});c.appendChild(dl);
+  var g=el("div","g2");c.appendChild(g);
+  var w1=el("div"),w2=el("div");g.appendChild(w1);g.appendChild(w2);
+  var tp=document.createElement("select");Object.keys(CNOM).forEach(function(k){tp.appendChild(opt(k,CNOM[k]))});tp.value=CF.tipo;w1.appendChild(el("label",null,"Tipo"));w1.appendChild(tp);
+  var mo=document.createElement("input");mo.type="number";mo.inputMode="decimal";mo.step="0.01";mo.min="0";mo.placeholder="0.00";w2.appendChild(el("label",null,"Monto (S/)"));w2.appendChild(mo);
+  var me=document.createElement("select");Object.keys(MT).filter(function(k){return k!=="yape"}).forEach(function(k){me.appendChild(opt(k,MT[k]))});me.value=CF.met;mk("Método",me);
+  var nt=document.createElement("input");nt.placeholder="Opcional (ej. boleta 001-25)";mk("Nota",nt);
+  var bt=el("button","btn","Agregar");c.appendChild(bt);
+  bt.onclick=function(){
+    var n=nom.value.trim(),m=Number(String(mo.value).replace(",","."));
+    if(!n){say("mK","err","Escribe el nombre.");nom.focus();return}
+    if(!(m>0)){say("mK","err","Escribe un monto mayor a 0.");mo.focus();return}
+    CF.tipo=tp.value;CF.met=me.value;bt.disabled=true;
+    sb.from("caja_cuaderno").insert({sede_id:KDATA.sede,fecha:KDATA.dia,nombre:n,tipo:tp.value,monto:Math.round(m*100)/100,metodo:me.value,nota:nt.value.trim()||null}).then(function(r){
+      bt.disabled=false;
+      if(r.error){say("mK","err",/row-level|policy/i.test(r.error.message||"")?"No se pudo guardar: revisa que la fecha no sea futura ni de hace más de 60 días.":errp(r.error));return}
+      say("mK","ok","Agregado: "+n+" · "+sol(m)+".");cargarCaja();
+    });
+  };
+  return c;
 }
 function sumaPor(L,k){var g={};L.forEach(function(x){var key=x[k]||"Sin indicar";g[key]=(g[key]||0)+x.monto});return g}
 function pintarCaja(){
@@ -1319,8 +1352,9 @@ function pintarCaja(){
   var tot=L.reduce(function(a,x){return a+x.monto},0),pt=sumaPor(L,"tipo"),pm=sumaPor(L,"met"),pp=sumaPor(L,"por");
   var c=el("div","card");var h=el("div","sub",(KDATA.sede?nomS(KDATA.sede):"Todos los locales")+" · "+new Date(KDATA.dia+"T12:00:00-05:00").toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"}));h.style.margin="0";c.appendChild(h);
   var b=el("b",null,sol(tot));b.style.cssText="display:block;font-size:30px;margin:4px 0";c.appendChild(b);c.appendChild(el("div","sub",L.length+(L.length===1?" cobro":" cobros")+" en total"));box.appendChild(c);
+  box.appendChild(formCuaderno());
   var fila=function(card,a,v){var r=el("div");r.style.cssText="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd)";r.appendChild(el("span",null,a));r.appendChild(el("b",null,v));card.appendChild(r)};
-  var c1=el("div","card");c1.style.marginTop="10px";c1.appendChild(el("b",null,"Por tipo"));["Paquetes","Sesiones sueltas","Ortopedia"].forEach(function(k){fila(c1,k,sol(pt[k]||0))});box.appendChild(c1);
+  var c1=el("div","card");c1.style.marginTop="10px";c1.appendChild(el("b",null,"Por tipo"));["Paquetes","Sesiones sueltas","Ortopedia"].concat(pt.Otros?["Otros"]:[]).forEach(function(k){fila(c1,k,sol(pt[k]||0))});box.appendChild(c1);
   var c2=el("div","card");c2.style.marginTop="10px";c2.appendChild(el("b",null,"Por forma de pago"));
   var mk=Object.keys(pm).sort(function(a,b){return pm[b]-pm[a]});if(!mk.length)c2.appendChild(el("div","sub","Sin cobros."));
   mk.forEach(function(k){fila(c2,MT[k]||k,sol(pm[k]))});
@@ -1336,10 +1370,13 @@ function pintarCaja(){
   if(!L.length)c4.appendChild(el("div","sub","No hay cobros este día."));
   L.forEach(function(x){var r=el("div");r.style.cssText="padding:8px 0;border-bottom:1px solid var(--bd)";
     var t=el("div");t.style.cssText="display:flex;justify-content:space-between;gap:10px";t.appendChild(el("b",null,x.det));t.appendChild(el("b",null,sol(x.monto)));r.appendChild(t);
-    r.appendChild(el("div","sub",[x.t.toLocaleTimeString("es-PE",{timeZone:"America/Lima",hour:"2-digit",minute:"2-digit"}),x.tipo,MT[x.met]||x.met,!KDATA.sede?nomS(x.sede):"",x.por].filter(Boolean).join(" · ")));c4.appendChild(r)});
+    r.appendChild(el("div","sub",[x.cid?"Cuaderno":x.t.toLocaleTimeString("es-PE",{timeZone:"America/Lima",hour:"2-digit",minute:"2-digit"}),x.tipo,MT[x.met]||x.met,!KDATA.sede?nomS(x.sede):"",x.por].filter(Boolean).join(" · ")));
+    if(x.cid){var qb=el("button","sm","Quitar");qb.style.cssText="margin:6px 0 0;color:#c0392b";qb.onclick=function(){if(!confirm("¿Quitar esta línea del cuaderno ("+sol(x.monto)+")?"))return;qb.disabled=true;
+      sb.from("caja_cuaderno").delete().eq("id",x.cid).select("id").then(function(z){if(z.error||!z.data||!z.data.length){qb.disabled=false;say("mK","err",z.error?errp(z.error):"No tienes permiso para quitar esta línea.");return}say("mK","ok","Línea quitada.");cargarCaja()})};r.appendChild(qb)}
+    c4.appendChild(r)});
   box.appendChild(c4);
   var wa=el("button","btn","Enviar resumen por WhatsApp");wa.onclick=function(){
-    var tx="*Caja "+(KDATA.sede?nomS(KDATA.sede):"todos los locales")+" · "+KDATA.dia.split("-").reverse().join("/")+"*\nTotal: "+sol(tot)+"\n\n*Por tipo*\n"+["Paquetes","Sesiones sueltas","Ortopedia"].map(function(k){return k+": "+sol(pt[k]||0)}).join("\n")+
+    var tx="*Caja "+(KDATA.sede?nomS(KDATA.sede):"todos los locales")+" · "+KDATA.dia.split("-").reverse().join("/")+"*\nTotal: "+sol(tot)+"\n\n*Por tipo*\n"+["Paquetes","Sesiones sueltas","Ortopedia"].concat(pt.Otros?["Otros"]:[]).map(function(k){return k+": "+sol(pt[k]||0)}).join("\n")+
       "\n\n*Por forma de pago*\n"+(mk.map(function(k){return (MT[k]||k)+": "+sol(pm[k])}).join("\n")||"Sin cobros");
     if(inp.value.trim())tx+="\n\nEfectivo contado: "+sol(Number(inp.value.replace(",",".")))+"\n"+dif.textContent;
     window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
